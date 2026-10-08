@@ -48,6 +48,14 @@ function buildInterior(def){
   def.built=true; return def;
 }
 function icell(F,x,y){ const i=Math.floor(x/ICELL), j=Math.floor(y/ICELL); if(i<0||j<0||i>=F.W||j>=F.H) return ' '; return F.cells[j*F.W+i]; }
+// celda transitable más cercana a un punto (para aparecer junto a puertas y escaleras sin quedar encajado)
+function freeSpot(F,x,y,avoid){
+  let best=null,bd=1e9;
+  for(let j=0;j<F.H;j++) for(let i=0;i<F.W;i++){ const cx=(i+.5)*ICELL, cy=(j+.5)*ICELL, c=F.cells[j*F.W+i];
+    if(avoid&&avoid.includes(c)) continue; if(!iwalk(F,cx,cy,8)) continue;
+    const d=Math.hypot(cx-x,cy-y); if(d<bd){ bd=d; best={x:cx,y:cy}; } }
+  return best||{x,y};
+}
 function iwalk(F,x,y,r){ for(const [ox,oy] of [[-r,-r],[r,-r],[-r,r],[r,r],[0,0]]) if(!WALK_CH.has(icell(F,x+ox,y+oy))) return false; return true; }
 
 // ---------- entrar / salir ----------
@@ -58,7 +66,7 @@ function enterInterior(key){
   const P=G.player; if(P.inCar) return false;
   const fi=def.entryFloor||0, F=def.floorsB[fi], ex=F.exits[0]||{x:F.W*ICELL/2,y:F.H*ICELL/2};
   G.inside={key,f:fi,wx:P.x,wy:P.y,wz:P.z,t:0};
-  P.x=ex.x; P.y=ex.y-ICELL; G.inside.cool=0.6;
+  const sp=freeSpot(F,ex.x,ex.y-ICELL,['E','^','v']); P.x=sp.x; P.y=sp.y; G.inside.cool=0.6;
   sfx.blip(); toast(def.name+(F.name?' — '+F.name:''),2.5);
   return true;
 }
@@ -69,7 +77,7 @@ function exitInterior(){
 function changeFloor(dir){
   const I=G.inside, def=INTERIORS[I.key], nf=I.f+dir, F=def.floorsB[nf]; if(!F) return;
   const tgt=(dir>0?F.down:F.up)[0]||F.exits[0]||{x:F.W*ICELL/2,y:F.H*ICELL/2};
-  I.f=nf; I.cool=0.8; const P=G.player; P.x=tgt.x; P.y=tgt.y+ICELL*0.9; if(!iwalk(F,P.x,P.y,8)) P.y=tgt.y-ICELL*0.9;
+  I.f=nf; I.cool=0.8; const P=G.player; const sp=freeSpot(F,tgt.x,tgt.y,['E','^','v']); P.x=sp.x; P.y=sp.y;
   sfx.blip(); toast(def.name+' — '+(F.name||('Planta '+nf)),2);
 }
 

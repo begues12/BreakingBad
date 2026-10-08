@@ -12,6 +12,7 @@ function update(dt){
   G.floaters=G.floaters.filter(f=>f.life>0);
 
   if(G.cine){ updateCine(dt); return; }
+  if(G.mg){ updateMinigame(dt); return; }
   if(G.dialog){
     const D=G.dialog, L=D.lines[D.i];
     if(L && !L.choices){ const prev=D.ch|0; D.ch=Math.min(L[1].length,D.ch+dt*55); if((D.ch|0)!==prev && (D.ch|0)%3===0) beep(220+Math.random()*80,0.02,'square',0.01); }
@@ -37,7 +38,7 @@ function update(dt){
   const car=P.inCar;
   if(car) P.z=car.z;
   if(car){
-    driveCar(car,dt,keys['w']||keys['arrowup'],keys['s']||keys['arrowdown'],(keys['a']||keys['arrowleft']?-1:0)+(keys['d']||keys['arrowright']?1:0),keys[' ']);
+    if(car.driver!=='ride') driveCar(car,dt,keys['w']||keys['arrowup'],keys['s']||keys['arrowdown'],(keys['a']||keys['arrowleft']?-1:0)+(keys['d']||keys['arrowright']?1:0),keys[' ']);
     P.x=car.x; P.y=car.y; P.a=car.a;
     if(pressed['h']) beep(330,0.35,'sawtooth',0.05);
     if(car.dead){ P.inCar=null; }

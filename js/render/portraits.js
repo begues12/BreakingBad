@@ -83,6 +83,7 @@ function walterLook(){
   return Object.assign({},L,{hair:'bald'},(i>=at('4x09')&&i<=at('4x10'))?{bandage:true}:{});
 }
 let PORTRAIT_BARE=false;
+let PORTRAIT_OVERRIDE=null; // cambios de ropa del retrato (cinemáticas: que el busto coincida con el cuerpo)
 let PORTRAIT_HAT=null; // null: según el sitio del jugador · true/false: forzado (cinemáticas)
 const HAT_BG=new Set(['desert','junkyard','warehouse','street','carpark','tohajiilee','train','diner','hacienda','office','snow']);
 function walterHat(){ if(!heisLook()) return false; if(PORTRAIT_HAT!==null) return PORTRAIT_HAT; return !(typeof G!=='undefined'&&G.inside); } // true: sin marco circular ni fondo (primeros planos de las cinemáticas)
@@ -104,6 +105,7 @@ function drawPortrait(id,cx,cy,r,talking,t){
   }
   let L=LOOK[id]; if(!L){ ctx.restore(); ctx.restore(); return; }
   if(id==='W') L=walterLook();
+  if(PORTRAIT_OVERRIDE) L=Object.assign({},L,PORTRAIT_OVERRIDE);
   const heis = id==='W' && walterHat();
   if(heis) L=Object.assign({},L,{outfit:'jacket',cloth:'#2b2b2b',shirt:'#55504a',hat:true,browA:0.2});
   const W=L.hw, H=L.hh, HY=-4; // centro de la cabeza

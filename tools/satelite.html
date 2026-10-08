@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vista satélite</title>
+<style>html,body{margin:0;background:#111;color:#ddd;font:13px "Segoe UI",Arial}#c{display:none}#out{display:block}</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<canvas id="out"></canvas>
+<script src="../maps/abq.js"></script>
+<script src="../js/world/mapcodec.js"></script>
+<script src="../js/core/config.js"></script>
+<script src="../js/world/geography.js"></script>
+<script src="../js/core/state.js"></script>
+<script src="../js/world/navigation.js"></script>
+<script src="../js/core/input.js"></script>
+<script src="../js/systems/audio.js"></script>
+<script src="../js/game/dialogue.js"></script>
+<script src="../js/cutscenes/shots.js"></script>
+<script src="../js/game/minigames.js"></script>
+<script src="../js/game/missions.js"></script>
+<script src="../js/missions/t1.js"></script>
+<script src="../js/missions/t2.js"></script>
+<script src="../js/missions/t3.js"></script>
+<script src="../js/missions/t4.js"></script>
+<script src="../js/missions/t5a.js"></script>
+<script src="../js/missions/t5b.js"></script>
+<script src="../js/missions/minigames.js"></script>
+<script src="../js/game/story.js"></script>
+<script src="../js/game/cooking.js"></script>
+<script src="../js/game/shop.js"></script>
+<script src="../js/game/combat.js"></script>
+<script src="../js/core/update.js"></script>
+<script src="../js/world/vehicles.js"></script>
+<script src="../js/systems/save.js"></script>
+<script src="../js/render/render.js"></script>
+<script src="../js/render/hud.js"></script>
+<script src="../js/render/portraits.js"></script>
+<script src="../js/render/title.js"></script>
+<script src="../js/render/pausemap.js"></script>
+<script src="../js/cutscenes/engine.js"></script>
+<script src="../js/cutscenes/t1.js"></script>
+<script src="../js/cutscenes/t2.js"></script>
+<script src="../js/cutscenes/t3.js"></script>
+<script src="../js/cutscenes/t4.js"></script>
+<script src="../js/cutscenes/t5.js"></script>
+<script src="../js/interiors/interiors.js"></script>
+<script src="../js/interiors/plans.js"></script>
+<script>
+"use strict";
+// Vista cenital del mapa con el mismo render del juego.
+// Parámetros (#): x,y,w,h = zona del mundo (por defecto todo) · px = ancho de la imagen en píxeles
+// Ej.: tools/satelite.html#x=5000&y=9000&w=3000&h=2000&px=1800
+newGame(); G.camLock=true;
+const q=new URLSearchParams(location.hash.slice(1));
+const X=+(q.get('x')||0), Y=+(q.get('y')||0), Wd=+(q.get('w')||WW), Hd=+(q.get('h')||WH), PX=+(q.get('px')||1600);
+const sc=PX/Wd, out=document.getElementById('out'); out.width=PX; out.height=Math.round(Hd*sc);
+initRender();
+const og=out.getContext('2d'), saved=ctx; ctx=og;
+ctx.setTransform(sc,0,0,sc,-X*sc,-Y*sc);
+drawStatic(X,Y,X+Wd,Y+Hd,[]);
+// edificios (tejado sobre su planta) y árboles
+for(const tr of treesIn(X,Y,X+Wd,Y+Hd)) drawTreeSprite(tr);
+for(const s of solidsIn(X,Y,X+Wd,Y+Hd)){ if(s.kind==='cactus') continue; ctx.fillStyle='rgba(0,0,0,.25)'; ctx.fillRect(s.x+4,s.y+5,s.w,s.h); drawRoof(s,s.x,s.y); }
+// tableros elevados: cámara centrada en la zona para la perspectiva
+cam.z=sc; cam.x=X; cam.y=Y; VW=Wd*sc; VH=Hd*sc; drawOverpasses();
+if(q.has('labels')){ ctx.font=(14/sc)+'px sans-serif'; ctx.fillStyle='#ff0'; for(const k in LOC){ const L=LOC[k]; if(L.x<X||L.x>X+Wd||L.y<Y||L.y>Y+Hd) continue; ctx.fillText(L.name,L.x,L.y); } }
+ctx=saved; document.title='listo';
+</script>
+</body>
+</html>

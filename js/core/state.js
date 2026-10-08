@@ -5,6 +5,7 @@ const CARTYPES = {
   aztek:{w:46,h:24,r:21,max:480,acc:350,turn:2.5,hp:120,mass:1.25,color:'#8a9a5b'},
   rv:   {w:70,h:30,r:28,max:340,acc:210,turn:1.75,hp:220,mass:2.6,gripMul:0.85,color:'#e8e2cf'},
   cop:  {w:46,h:22,r:20,max:560,acc:430,turn:2.8,hp:140,mass:1.2,gripMul:1.1,color:'#f2f2f2'},
+  ambulance:{w:62,h:28,r:26,max:520,acc:380,turn:2.3,hp:300,mass:2.2,color:'#f4f4f2'},
   dea:  {w:48,h:24,r:21,max:560,acc:430,turn:2.8,hp:160,mass:1.6,gripMul:1.05,color:'#1d1f24'},
 };
 const CARCOLORS=['#a33','#335','#ddd','#222','#6a6a6a','#2a5a8a','#8a6a2a','#5a2a5a','#c8b070','#3a6a3a','#b55a2a'];
@@ -81,6 +82,7 @@ function spawnPed(anywhere){
     const nr=roadPointNear(anywhere?120:650,anywhere?1300:1250,PED_ROAD); if(!nr) continue;
     const side=Math.random()<.5?1:-1, pos=sidewalkPos(nr.r,nr.s,side);
     if(inWater(pos.x,pos.y)||hitSolid(pos.x,pos.y,6)) continue;
+    if(Math.random()>density(pos.x,pos.y)*1.15+0.02) continue;   // sin casas alrededor casi nadie pasea
     G.peds.push({x:pos.x,y:pos.y,a:pos.a,road:nr.r.idx,s:nr.s,side,dir:Math.random()<.5?1:-1,mode:'walk',lastX:-1,
       sp:rand(38,58),col:PEDCOL[(Math.random()*PEDCOL.length)|0],skin:['#e6c09a','#c69468','#8d5a3b','#f1d3b5'][(Math.random()*4)|0],
       flee:0,walk:0,turnT:rand(2,6)});

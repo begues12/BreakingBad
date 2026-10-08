@@ -13,11 +13,17 @@ addMissions([
       ['N','El coche es de Chad, un alumno suyo. Se ríe y le hace fotos mientras Walter frota las llantas.'],
       ['N','Walter tose. No puede respirar. Se desploma junto al coche.'],
     ]},
-    {type:'talk', at:'hospital', obj:'Te han llevado al hospital', lines:[
-      ['X','Señor White, tiene usted un carcinoma pulmonar. Inoperable. Con tratamiento... quizá un par de años.'],
-      ['W','(Tiene mostaza en la bata.)'],
-      ['N','Walter no se lo cuenta a nadie. Llega a casa y le dice a Skyler que el día ha ido bien.'],
-    ]},
+    {type:'ride', from:'carwash', to:'hospital', car:'ambulance', obj:'La ambulancia te lleva al hospital'},
+    {type:'cine', obj:'En el hospital', scenes:[
+      {title:'1x01 · El diagnóstico', shots:[
+        SH.wide('hospital','fluor',[ch('W',0.38,{pose:'sit'}),ch('X',0.66,{face:-1,body:'#f2f2f2'})],'Hospital Universitario. Una consulta pequeña, luz de fluorescente.',{dur:3.4}),
+        SH.close('X','hospital','fluor','',{say:['X','Señor White, tiene usted un carcinoma pulmonar. Inoperable.'],dur:3.6}),
+        SH.close('X','hospital','fluor','',{say:['X','Con quimioterapia... quizá un par de años.'],dur:3}),
+        SH.close('W','hospital','fluor','Walter no le escucha. Se queda mirando la bata del médico.',{move:'push',dur:3.6}),
+        SH.det('mustard','hospital','fluor','Una mancha de mostaza.',{dur:2.4}),
+        SH.close('X','hospital','fluor','',{say:['X','¿Me ha entendido, señor White?'],dur:2.6}),
+        SH.close('W','hospital','fluor','',{say:['W','Tiene mostaza en la bata.'],tight:true,dur:3}),
+      ]}], lines:[['N','Walter no se lo cuenta a nadie. Llega a casa y le dice a Skyler que el día ha ido bien.']]},
     {type:'goto', at:'spooge', obj:'Acompaña a Hank a la redada de la DEA', lines:[
       ['H','Quédate en el coche, Walt. En serio.'],
       ['N','Los agentes sacan esposado a Emilio Koyama. Desde el coche, Walter ve a otro chico saltar por la ventana del vecino, a medio vestir.'],

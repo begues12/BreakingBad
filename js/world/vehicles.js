@@ -155,6 +155,7 @@ function updateWorld(dt){
     if(c.driver==='ai') aiTraffic(c,dt);
     else if(c.driver==='cop') aiCop(c,dt);
     else if(c.driver==='flee') aiFlee(c,dt);
+    else if(c.driver==='ride') aiRide(c,dt);
     else if(c.driver===null || c.parked){
       if(c.driver!=='player') driveCar(c,dt,false,false,0,false,true);
     }
@@ -191,9 +192,12 @@ function updateWorld(dt){
 
   // ---------- tráfico / peatones: mantener densidad ----------
   const traffic=G.cars.filter(c=>c.driver==='ai').length;
-  if(traffic<30) spawnTraffic(false);
+  // densidad según lo urbano que sea el entorno (centro lleno, desierto casi vacío)
+  if(!G.crowdT||(G.crowdT-=dt)<=0){ G.crowdT=1; let s=0; for(let i=0;i<9;i++){ const a=i*0.7, r=i?900:0; s+=density(P.x+Math.cos(a)*r,P.y+Math.sin(a)*r); } G.crowd=clamp(s/9/0.85,0.03,1); }
+  const crowd=G.crowd||1;
+  if(traffic<Math.round(4+26*crowd)) spawnTraffic(false);
   for(const c of G.cars){
-    if(c.owned||c.mission||c===P.inCar||c.driver==='cop') continue;
+    if(c.owned||c.mission||c===P.inCar||c.driver==='cop'||c.driver==='ride') continue;
     if(dist(c.x,c.y,P.x,P.y)>2200) c.dead=true;
   }
   G.cars=G.cars.filter(c=>!c.dead||c.burnt).filter(c=>!(c.burnt&&dist(c.x,c.y,P.x,P.y)>2500));
@@ -203,7 +207,10 @@ function updateWorld(dt){
     for(const c of cs) if(c.driver!=='player' && !onDeck(c) && Math.abs(c.v)>120 && dist(c.x,c.y,p.x,p.y)<c.r+5) killPed(p);
   }
   G.peds=G.peds.filter(p=>!(p.dead&&p.deadT<=0) && dist(p.x,p.y,P.x,P.y)<1700);
-  for(let k=0;k<3&&G.peds.filter(p=>!p.dead).length<80;k++) spawnPed(false);
+  const alive=G.peds.filter(p=>!p.dead), maxPeds=Math.round(2+78*crowd);
+  for(let k=0;k<3&&alive.length+k<maxPeds;k++) spawnPed(false);
+  if(alive.length>maxPeds+5) for(const p of alive){ if(dist(p.x,p.y,P.x,P.y)>800&&!p.flee){ p.gone=true; if(--alive.length<=maxPeds) break; } }
+  G.peds=G.peds.filter(p=>!p.gone);
 
   // ---------- matones ----------
   for(const t of G.thugs){
@@ -389,3 +396,14 @@ function respawn(){
   if(G.rvId && !G.cars.some(c=>c.id===G.rvId && !c.burnt)){ const rv=spawnCar('rv',LOC.rvlot.parkX,LOC.rvlot.parkY,LOC.rvlot.parkA,{owned:true}); G.rvId=rv.id; toast('Saul te consiguió otra autocaravana (en el concesionario).',5); }
 }
 
+
+// vehículo con conductor que lleva al jugador de pasajero (ambulancia, coche de Tuco...)
+function aiRide(c,dt){
+  while(c.ri<c.route.length-1 && dist(c.x,c.y,c.route[c.ri][0],c.route[c.ri][1])<70) c.ri++;
+  const [tx,ty]=c.route[c.ri], ta=Math.atan2(ty-c.y,tx-c.x), diff=angDiff(c.a,ta);
+  let sharp=Math.abs(diff); if(c.ri<c.route.length-2){ const [ax,ay]=c.route[c.ri],[bx,by]=c.route[c.ri+2]; sharp=Math.max(sharp,Math.abs(angDiff(Math.atan2(ay-c.y,ax-c.x),Math.atan2(by-ay,bx-ax)))); }
+  const vmax=sharp>1?170:sharp>0.5?260:420, left=dist(c.x,c.y,c.goal[0],c.goal[1]);
+  driveCar(c,dt,c.v<vmax&&left>120,c.v>vmax+40||left<120,clamp(diff*2.4,-1,1),false);
+  if(Math.abs(c.v)<20&&left>120){ c.stuck=(c.stuck||0)+dt; if(c.stuck>1.5){ const p=c.route[Math.min(c.route.length-1,c.ri+1)]; c.x=p[0]; c.y=p[1]; c.z=spawnZ(p[0],p[1]); c.stuck=0; } } else c.stuck=0;
+  c.arrived=left<130&&Math.abs(c.v)<40;
+}

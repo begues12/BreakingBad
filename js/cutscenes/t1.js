@@ -11,7 +11,7 @@ addCutscenes('1x01',[
   {title:'1x01 · Apertura — Pantalones en el desierto', shots:[
     wide('desert','hard',[],'Desierto de Nuevo México. Unos pantalones caen del cielo.',{move:'pan',props:[{t:'rv',x:0.55}]}),
     wide('desert','hard',[],'Una autocaravana avanza dando bandazos por la arena.',{props:[{t:'rv',x:0.5}],move:'shake',dur:2.6}),
-    low('desert','hard',[ch('W',0.42,{pose:'shoot',body:'#e8e8e8',pants:'#e8e8e8'})],'Un hombre en calzoncillos apunta a la carretera. Se oyen sirenas.',{props:[{t:'rv',x:0.75}],move:'push'}),
+    low('desert','hard',[ch('W',0.42,{pose:'shoot',outfit:'underwear'})],'Un hombre en calzoncillos apunta a la carretera. Se oyen sirenas.',{props:[{t:'rv',x:0.75}],move:'push'}),
     close('W','desert','hard','',{say:['W','Mi nombre es Walter Hartwell White. Esto no es una admisión de culpa.'],move:'push',dur:4.2}),
   ]},
   {title:'1x01 · Tres semanas antes', shots:[

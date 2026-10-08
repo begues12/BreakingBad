@@ -94,6 +94,23 @@ function spawnEnemies(n,x,y,opt){
 }
 
 const STEP_TYPES={
+  // trayecto con conductor: el jugador va dentro y la cámara sigue al vehículo hasta el destino
+  ride:{ start(S,ms){ const A=locOf(S.from), B=locOf(S.to), P=G.player;
+      if(G.inside) exitInterior(); if(P.inCar){ P.inCar.driver=null; P.inCar=null; }
+      const nr=nearestRoad(A.x,A.y,r=>r.drive&&r.kind!=='hwy');
+      const c=spawnCar(S.car||'ambulance',nr.x,nr.y,nr.a,{driver:'ride',mission:true,name:S.name||'Ambulancia',siren:0});
+      c.route=navRoute(c.x,c.y,c.z,B.parkX||B.x,B.parkY||B.y); c.ri=0; c.goal=[B.parkX||B.x,B.parkY||B.y];
+      P.inCar=c; P.x=c.x; P.y=c.y; ms.car=c.id; ms.t=0; sfx.phone&&0; },
+    update(S,ms,dt){ const c=G.cars.find(c=>c.id===ms.car); ms.t+=dt; if(!c){ finishStep(); return; }
+      if(Math.floor(ms.t*2)%2===0&&Math.floor((ms.t-dt)*2)%2===1) beep(960,0.25,'sine',0.02);   // sirena
+      if(c.arrived||ms.t>60){ const P=G.player, B=locOf(S.to); P.inCar=null; P.x=B.x; P.y=B.y; P.z=spawnZ(B.x,B.y); c.dead=true; finishStep(); } } },
+  // cinemática dentro de la misión (y después el diálogo `lines`, si lo hay)
+  cine:{ start(S,ms){ ms.finishing=true; playCutscene(S.scenes,()=>{ G.ms.finishing=false; finishStep(); }); } },
+  // minijuego: en el lugar `at` se lanza con E; sin `at` arranca solo (y se reintenta a los 3 s si se falla)
+  game:{ interact(S){ STEP_TYPES.game.go(S); },
+    go(S){ const ms=G.ms; if(ms.playing) return; ms.playing=true;
+      startMinigame(S,()=>{ ms.playing=false; finishStep(); },()=>{ ms.playing=false; ms.wait=3; toast('Inténtalo de nuevo'+(S.at?' (E en el lugar)':''),3); }); },
+    update(S,ms,dt){ if(S.at) return; ms.wait=(ms.wait||0.4)-dt; if(!ms.playing&&ms.wait<=0) STEP_TYPES.game.go(S); } },
   talk:{ interact(S){
       if(S.car && !inCarKind(S.car) && !(S.car==='rv' && rvNear(S.at))){ toast(S.car==='rv'?'Tienes que venir con la autocaravana.':'Tienes que venir en coche.'); return; }
       if(S.money && G.money<S.money){ toast('Necesitas $'+S.money.toLocaleString()+'.'); return; }
@@ -150,7 +167,7 @@ function updateMissions(dt){
   if(G.card){ G.card.t+=dt;
     if(G.card.complete){ if(G.card.t>3.2 && !G.dialog){ G.card=null; const go=G.cardWait; G.cardWait=null; if(go) go(); } }
     else if(G.card.t>3.2) G.card=null; }
-  if(G.dialog||G.cook) return;
+  if(G.dialog||G.cook||G.mg) return;
   const S=curStep(); if(!S||G.ms.finishing) return;
   const T=STEP_TYPES[S.type]; if(T&&T.update) T.update(S,G.ms,dt);
 }

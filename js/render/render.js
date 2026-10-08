@@ -529,7 +529,10 @@ function drawCar(c,t){
   ctx.fillStyle='#111'; ctx.fillRect(-w/2+5,-h/2-2,10,4); ctx.fillRect(w/2-15,-h/2-2,10,4); ctx.fillRect(-w/2+5,h/2-2,10,4); ctx.fillRect(w/2-15,h/2-2,10,4);
   ctx.fillStyle=c.color; roundRect(-w/2,-h/2,w,h,5); ctx.fill();
   if(c.type==='cop'){ ctx.fillStyle='#111'; ctx.fillRect(-w/2,-h/2,12,h); ctx.fillRect(w/2-10,-h/2,10,h); }
-  if(c.type==='rv'){
+  if(c.type==='ambulance'){ ctx.fillStyle='#d22'; ctx.fillRect(-w/2,-2,w,4); ctx.fillStyle='#e8e8e8'; ctx.fillRect(-w/2+2,-h/2+2,w-20,h-4);
+    ctx.fillStyle='#d22'; ctx.fillRect(-10,-3,14,6); ctx.fillRect(-6,-7,6,14); ctx.fillStyle='rgba(30,45,60,.85)'; ctx.fillRect(w/2-15,-h/2+3,7,h-6);
+    if(c.siren!==undefined){ const on=Math.floor(t*8)%2; ctx.fillStyle=on?'#f22':'#fff'; ctx.fillRect(w/2-20,-h/2+1,4,6); ctx.fillStyle=on?'#fff':'#f22'; ctx.fillRect(w/2-20,h/2-7,4,6); }
+  } else if(c.type==='rv'){
     ctx.fillStyle='#b8a984'; ctx.fillRect(-w/2+4,-h/2+2,w-20,4); ctx.fillRect(-w/2+4,h/2-6,w-20,4);
     ctx.fillStyle='#8a7a5a'; ctx.fillRect(-w/2+10,-6,14,12);
     ctx.fillStyle='#3a4a55'; ctx.fillRect(w/2-14,-h/2+3,8,h-6);
@@ -556,6 +559,7 @@ function drawCar(c,t){
 function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 
 function draw(t){
+  if(G.mg){ drawMinigame(t); return; }
   if(G.cine){ drawCine(t); return; }
   if(G.inside){ drawInterior(t); drawHUD(t); return; }
   const P=G.player;

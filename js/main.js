@@ -29,6 +29,7 @@ if(/[?&#]debug/.test(location.search+location.hash)){
   const at=(q.get('at')||'').split(',').map(Number);
   if(at.length===2&&!isNaN(at[0])){ const P=G.player; P.x=at[0]; P.y=at[1]; P.z=spawnZ(at[0],at[1]); for(const c of G.cars) if(c.owned){ c.x=P.x+60; c.y=P.y; c.z=spawnZ(c.x,c.y); } }
   if(q.get('clock')) G.clock=+q.get('clock');
+  if(q.get('mg')) startMinigame({game:q.get('mg'),title:'Prueba: '+q.get('mg'),opts:{}},()=>{},()=>{});
   if(q.has('bench')) BENCH={t0:performance.now(),dir:9,work:[],gap:[],last:0};   // ver loop(): 8 s conduciendo de verdad
   if(q.get('cine')){ const sc=CUTSCENES[q.get('cine')]; const si=+(q.get('scene')||0), sh=+(q.get('shot')||0); playCutscene(sc.slice(si,si+1)); G.cine.shi=sh; G.cine.t=+(q.get('t')||1.2); G.cine.hold=true; }
   if(q.get('inside')){ const k=q.get('inside'); G.player.inCar=null; enterInterior(k); if(q.get('floor')){ G.inside.f=+q.get('floor'); const F=INTERIORS[k].floorsB[G.inside.f]; G.player.x=F.W*ICELL/2; G.player.y=F.H*ICELL/2; } }

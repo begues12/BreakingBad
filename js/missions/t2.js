@@ -33,6 +33,7 @@ addMissions([
     {type:'goto', at:'super', obj:'Ve al supermercado para fabricar tu coartada', lines:[
       ['N','Walter se desnuda en mitad del supermercado. "Fuga disociativa", dirán los médicos.'],
     ]},
+    {type:'ride', from:'super', to:'hospital', car:'ambulance', obj:'La ambulancia te lleva al hospital'},
     {type:'talk', at:'hospital', obj:'Ingresa en el hospital y engaña a los médicos', lines:[
       ['S','¿Dónde estuviste tres días, Walt?'],
       ['W','No lo sé, Sky. No me acuerdo de nada.'],
