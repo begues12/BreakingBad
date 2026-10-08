@@ -255,6 +255,13 @@ function drawProp(p,x,y,s,t){
     case 'car': case 'aztek': case 'chrysler': R(p==='aztek'?'#8a9a5b':p==='chrysler'?'#1a1a1a':'#a33',-130,-70,260,52,18); R(p==='aztek'?'#7a8a4b':p==='chrysler'?'#111':'#822',-80,-105,150,40,14); R('#bfe0f0',-70,-98,60,28,6); R('#bfe0f0',0,-98,60,28,6); ctx.fillStyle='#111'; ctx.beginPath(); ctx.arc(-80,-18,20,0,7); ctx.arc(80,-18,20,0,7); ctx.fill(); break;
     case 'money': for(let i=0;i<14;i++){ R(i%2?'#5a8a4a':'#6a9a5a',-90+(i%5)*36,-14-Math.floor(i/5)*14,34,13,2); } break;
     case 'barrel': for(const dx of [-50,0,50]){ R('#2a5a8a',dx-22,-80,44,80,6); ctx.fillStyle='#1a3a5a'; ctx.fillRect(dx-22,-55,44,4); ctx.fillRect(dx-22,-28,44,4); } break;
+    case 'barrels': for(const dx of [-72,-24,24,72]){ R('#2a5a8a',dx-18,-78,36,78,6); ctx.fillStyle='#1a3a5a'; ctx.fillRect(dx-18,-53,36,4); ctx.fillRect(dx-18,-27,36,4); } break;
+    case 'reaction':
+      R('#4b5052',-74,-58,148,58,12); R('#292d30',-82,-12,164,18,5);
+      ctx.fillStyle='rgba(145,205,166,.82)'; ctx.beginPath(); ctx.ellipse(0,-57,67,8,0,0,7); ctx.fill();
+      ctx.fillStyle='rgba(225,245,220,.72)'; for(let i=0;i<5;i++){ const bx=Math.sin(t*2.4+i*1.7)*42, by=-62-((t*42+i*19)%54); ctx.beginPath(); ctx.arc(bx,by,3+i%3,0,7); ctx.fill(); }
+      ctx.strokeStyle='rgba(175,230,190,.48)'; ctx.lineWidth=5; for(let i=0;i<4;i++){ const sx=(i-1.5)*24, sway=Math.sin(t*1.8+i)*9; ctx.beginPath(); ctx.moveTo(sx,-65); ctx.bezierCurveTo(sx+sway,-90,sx-sway,-104,sx+sway,-132); ctx.stroke(); }
+      break;
     case 'gun': case 'revolver': ctx.fillStyle='#1a1a1c'; ctx.fillRect(-60,-30,90,16); ctx.fillRect(-60,-30,26,46); if(p==='revolver'){ ctx.beginPath(); ctx.arc(-20,-22,12,0,7); ctx.fill(); } ctx.fillStyle='#5a3a20'; ctx.fillRect(-58,-10,22,32); break;
     case 'boxcutter': R('#e8c040',-70,-16,110,22,6); ctx.fillStyle='#c8ced4'; ctx.beginPath(); ctx.moveTo(40,-14); ctx.lineTo(80,-6); ctx.lineTo(40,2); ctx.fill(); break;
     case 'crystal': for(let i=0;i<9;i++){ ctx.fillStyle=`hsl(${195+i*3},80%,${55+i%3*8}%)`; ctx.beginPath(); const a=-60+i*15, b=-20-((i*13)%30); ctx.moveTo(a,b); ctx.lineTo(a+14,b-18); ctx.lineTo(a+28,b); ctx.lineTo(a+14,b+10); ctx.fill(); } break;

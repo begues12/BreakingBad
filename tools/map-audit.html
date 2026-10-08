@@ -63,7 +63,7 @@ function roadFeatures(){
     line.addTo(roadLayer);
   }
 }
-function placeFeatures(){
+function placeFeatures(){w
   placeLayer.clearLayers();
   const all=Object.entries(MAP.places).map(([key,p])=>({key,...p}));
   all.push({key:'cook',name:'Cocina (desierto)',...MAP.cook});

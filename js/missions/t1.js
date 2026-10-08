@@ -3,7 +3,7 @@
 addMissions([
 { code:'1x01', season:'T1', title:'Pilot', reward:0, cineStart:3,
   steps:[
-    {type:'talk', at:'instituto', obj:'Da tu clase de química en el instituto', start(){ setTimeout(()=>toast('WASD moverse/conducir · F coche · E interactuar · ESPACIO freno de mano · Clic disparar · P/M mapa',10),4500); }, lines:[
+    {type:'talk', at:'instituto', obj:'Da tu clase de química en el instituto', start(){ setTimeout(()=>toast('A pie: WASD para moverte · En coche: W acelerar, S frenar/marcha atrás, A/D girar · F coche · E interactuar · ESPACIO freno de mano · Clic disparar · P/M mapa',10),4500); }, lines:[
       ['W','La química es el estudio de la materia. Pero yo prefiero verla como el estudio del cambio.'],
       ['W','Crecimiento, decadencia, transformación. Es fascinante, de verdad.'],
       ['N','Nadie en el aula está escuchando.'],
@@ -24,12 +24,22 @@ addMissions([
         SH.close('X','hospital','fluor','',{say:['X','¿Me ha entendido, señor White?'],dur:2.6}),
         SH.close('W','hospital','fluor','',{say:['W','Tiene mostaza en la bata.'],tight:true,dur:3}),
       ]}], lines:[['N','Walter no se lo cuenta a nadie. Llega a casa y le dice a Skyler que el día ha ido bien.']]},
-    {type:'goto', at:'spooge', obj:'Acompaña a Hank a la redada de la DEA', lines:[
-      ['H','Quédate en el coche, Walt. En serio.'],
-      ['N','Los agentes sacan esposado a Emilio Koyama. Desde el coche, Walter ve a otro chico saltar por la ventana del vecino, a medio vestir.'],
+    {type:'talk', at:'dea', obj:'Ve a la DEA: Hank te lleva a ver una redada', lines:[
+      ['H','¡Walt! Has venido. Sube al coche, hoy vas a ver cómo trabajan los profesionales.'],
+      ['H','Un laboratorio en una casa del South Valley. Un tal Emilio Koyama. Tú quédate en el coche, ¿eh?'],
+    ]},
+    {type:'ride', from:'dea', to:'spooge', car:'dea', name:'SUV de Hank', keep:true, obj:'Hank conduce hasta la redada'},
+    {type:'watch', at:'spooge', dur:9, look:[60,0], cap:'Quédate en el coche, Walt...', actors:[
+      {id:'H',  from:[-40,60],  to:[10,10],   dur:2, gun:true},
+      {id:'X',  from:[-70,80],  to:[-10,20],  dur:2.2, gun:true, body:'#1b1b1b'},
+      {id:'EM', from:[0,-20],   to:[-60,90],  delay:3, dur:3, body:'#3a3a2a'},
+      {id:'J',  from:[190,-60], to:[520,-160], delay:4.2, dur:3.6, body:'#e8e4da', vanish:true},
+    ], lines:[
+      ['N','Los agentes sacan esposado a Emilio Koyama.'],
+      ['N','Desde el coche, Walter ve a otro chico saltar por la ventana de la casa de al lado, a medio vestir, y huir por los jardines.'],
       ['W','(...Pinkman. Jesse Pinkman. Un antiguo alumno.)'],
       ['N','Walter no dice nada. Jesse escapa.'],
-    ]},
+    ], release:true},
     {type:'talk', at:'jesse', obj:'Esa noche, ve a casa de Jesse Pinkman', lines:[
       ['J','¿Señor White? ¿Qué hace aquí, tío? ¿Me ha seguido?'],
       ['W','Te vi esta mañana, Jesse. Saltando por la ventana mientras la DEA detenía a tu socio.'],
@@ -53,13 +63,19 @@ addMissions([
       ['J','Tío... es lo más puro que he visto en mi vida. ¡Es usted un artista!'],
       ['J','Se lo llevo a Krazy-8. El primo de Emilio. Paga bien.'],
     ]},
-    {type:'talk', at:'desert', obj:'Krazy-8 y Emilio llegan al desierto', lines:[
-      ['EM','¡Es él! ¡El viejo estaba en la redada con la DEA! ¡Es un chivato!'],
-      ['K8','Así que trabajas para la poli, abuelo. Mala elección.'],
-      ['W','Esperad. Os enseñaré la receta. Dentro de la autocaravana.'],
-      ['N','Walter echa fósforo rojo al agua hirviendo. Gas de fosfina. Sale y sujeta la puerta desde fuera.'],
-      ['N','La autocaravana arranca a toda prisa con Walter al volante. Jesse inconsciente. Dos hombres dentro. Se oyen sirenas.'],
-    ], done(){ giveGun(12); }},
+    {type:'watch', at:'desert', dur:5, look:[0,0], cap:'Jesse se va a buscar a Krazy-8 con una muestra...', actors:[
+      {id:'J', from:[60,20], to:[700,-200], dur:4.5, body:'#262626', vanish:true},
+    ]},
+    {type:'hold', at:'desert', r:400, secs:5, obj:'Espera junto a la autocaravana a que vuelva Jesse'},
+    {type:'talk', at:'desert', arrive:true, auto:true, actors:['J','EM','K8'], obj:'Jesse vuelve con Krazy-8 y Emilio', scenes:[{title:'1x01 · Emilio y Krazy-8 encuentran a Walter', shots:[
+      SH.wide('desert','hard',[ch('W',0.34),ch('J',0.48),ch('EM',0.69,{face:-1,act:'walkin',from:1.12}),ch('K8',0.86,{face:-1,act:'walkin',from:1.12})],'Emilio y Krazy-8 aparecen junto a la autocaravana.',{props:[{t:'rv',x:0.23}],dur:3.8}),
+      SH.close('EM','desert','hard','',{say:['EM','¡Es él! ¡El viejo estaba en la redada con la DEA! ¡Es un chivato!'],dur:4}),
+      SH.close('K8','desert','hard','',{say:['K8','Así que trabajas para la poli, abuelo. Mala elección.'],dur:3.6}),
+      SH.med('desert','hard',[ch('W',0.37,{pose:'raise'}),ch('J',0.53),ch('EM',0.72,{face:-1}),ch('K8',0.88,{face:-1})],'',{say:['W','Esperad. Os enseñaré la receta. Dentro de la autocaravana.'],props:[{t:'rv',x:0.2}],dur:3.8}),
+      SH.det('reaction','rv','hard','Walter mezcla el fósforo rojo con agua hirviendo. El gas empieza a llenar el interior.',{dur:3.8}),
+      SH.med('rv','hard',[ch('W',0.36,{pose:'kneel'}),ch('J',0.57,{pose:'lie',face:-1})],'Jesse cae inconsciente. Walter consigue salir y cierra la puerta.',{props:[{t:'reaction',x:0.74,y:0.81,s:0.62}],dur:4}),
+      SH.wide('desert','hard',[ch('W',0.3,{act:'walkin',from:-0.2}),ch('EM',0.62,{pose:'lie'}),ch('K8',0.82,{pose:'lie',face:-1})],'Emilio y Krazy-8 quedan fuera de combate. Se oyen sirenas a lo lejos.',{props:[{t:'rv',x:0.38}],move:'shake',dur:3.8}),
+    ]}], done(){ giveGun(12); }},
     {type:'escape', stars:2, obj:'Se oyen sirenas. ¡Pierde a la policía!', lines:[
       ['N','Las sirenas pasan de largo. Eran camiones de bomberos: el desierto se está quemando.'],
       ['N','Walter vuelve a casa. Esa noche, Skyler lo nota distinto. Él también.'],
@@ -151,13 +167,19 @@ addMissions([
     ]},
   ]},
 
-{ code:'1x07', season:'T1', title:'A No-Rough-Stuff-Type Deal', reward:5000,
+{ code:'1x07', season:'T1', title:'A No-Rough-Stuff-Type Deal', reward:5000, cineStart:0,
   steps:[
     {type:'talk', at:'jesse', obj:'Organízate con Jesse: Tuco quiere más', lines:[
       ['J','¿Dos libras a la semana? Necesitamos metilamina. Mucha.'],
       ['W','Sé dónde hay. Un almacén químico.'],
     ]},
-    {type:'collect', at:'almacen', n:4, item:'barril de metilamina', obj:'Roba los barriles de metilamina del almacén'},
+    {type:'cine', obj:'Entrad en el almacén y cargad los bidones', scenes:[{title:'1x07 · El robo de la metilamina', shots:[
+      SH.wide('warehouse','night',[ch('W',0.3,{act:'walkin',from:-0.15,s:0.8}),ch('J',0.44,{act:'walkin',from:-0.15,s:0.8})],'De noche, Walter y Jesse se cuelan en el almacén químico.',{props:[{t:'barrels',x:0.8,s:1.5}],move:'pan',dur:3.8}),
+      SH.det('barrels','warehouse','night','Cuatro bidones de metilamina. Eso es lo que necesitan para cocinar.',{dur:3.4}),
+      SH.med('warehouse','night',[ch('W',0.3,{s:0.85}),ch('J',0.52,{pose:'raise',face:-1,s:0.85})],'',{say:['J','¡Un barril entero, tío!'],props:[{t:'barrels',x:0.8,s:1.6}],dur:3.4}),
+      SH.wide('warehouse','night',[ch('W',0.2,{face:-1,s:0.8}),ch('J',0.7,{pose:'kneel',s:0.8})],'Jesse carga los bidones. Walter vigila la entrada.',{props:[{t:'barrels',x:0.82,s:1.5}],move:'drift',dur:3.4}),
+    ]}]},
+    {type:'collect', at:'almacen', n:4, radius:150, item:'barril de metilamina', obj:'Roba los barriles de metilamina del almacén'},
     {type:'escape', stars:2, obj:'¡Ha saltado la alarma! Pierde a la policía'},
     {type:'cook', at:'desert', obj:'Cocina la remesa para Tuco'},
     {type:'talk', at:'tuco', product:2, obj:'Entrega 2 lb a Tuco', lines:[

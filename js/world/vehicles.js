@@ -27,8 +27,8 @@ function sparks(x,y,n,vx,vy){
   for(let i=0;i<n;i++) G.parts.push({x,y,vx:(vx||0)*0.3+rand(-160,160),vy:(vy||0)*0.3+rand(-160,160),life:rand(.15,.4),c:Math.random()<.5?'#ffd76a':'#fff3c0',s:rand(1.5,3)});
 }
 function carImpact(c,impact,x,y){
-  if(impact<90) return;
-  const dmg=(impact-70)/11; c.hp-=dmg;
+  if(impact<120) return;               // los toques y roces no dañan
+  const dmg=Math.pow((impact-100)/16,1.15); if(!(DEV.carGod&&c===G.player.inCar)) c.hp-=dmg;
   if(impact>160){ sfx.crash(); sparks(x,y,Math.min(14,impact/30|0)); }
   const P=G.player;
   if(c===P.inCar){ shakeCam(Math.min(14,impact/40)); if(impact>380) hurtPlayer((impact-300)/25); }
@@ -57,9 +57,10 @@ function driveCar(c,dt,acc,brk,steer,hand,idle){
   // dirección: el volante va rápido a la posición y vuelve aún más rápido al centro
   const sIn=c.steerS||0, toward=Math.abs(steer)>Math.abs(sIn)&&Math.sign(steer)===Math.sign(sIn||steer);
   c.steerS=sIn+(steer-sIn)*Math.min(1,dt*(toward?10:18));
-  // menos giro a alta velocidad para que no culebree
-  const targetW = c.steerS*c.turn*1.1*Math.min(1,Math.abs(vf)/80)*Math.sign(vf)*(1-0.45*spdR)*(hand?1.6:1);
-  c.av += (targetW-c.av)*Math.min(1,dt*(hand?4:Math.abs(vf)>20?16:6));
+  // Dirección útil también al aparcar; a velocidad alta se limita para evitar trompos.
+  const steerSpeed=clamp(Math.abs(vf)/80,0.22,1);
+  const targetW = c.steerS*c.turn*1.1*steerSpeed*Math.sign(vf||1)*(1-0.45*spdR)*(hand?1.6:1);
+  c.av += (targetW-c.av)*Math.min(1,dt*(hand?4:Math.abs(vf)>20?16:9));
   c.a += c.av*dt;
   c.vx=ca*vf-sa*vr; c.vy=sa*vf+ca*vr;
   c.x+=c.vx*dt; c.y+=c.vy*dt;
@@ -74,7 +75,7 @@ function driveCar(c,dt,acc,brk,steer,hand,idle){
   }
   collideWalls(c);
   // superficie bajo el coche: si el desnivel es grande (pretil, borde de puente, agua) choca y vuelve atrás
-  { const sp=Math.hypot(c.vx,c.vy), nz=c._px===undefined?spawnZ(c.x,c.y,c.z):standZ(c.x,c.y,c.z,STEP_UP+sp*dt*0.3);
+  { const sp=Math.hypot(c.vx,c.vy), nz=c._px===undefined?spawnZ(c.x,c.y,c.z):standZ(c.x,c.y,c.z,STEP_UP+sp*dt*0.3,c._px,c._py);
     if(nz===null){ c.x=c._px; c.y=c._py;
       if(sp>140){ sparks(c.x,c.y,6,c.vx,c.vy); carImpact(c,sp*0.4,c.x,c.y); }
       c.vx*=-0.25; c.vy*=-0.25; c.av*=0.5; }
@@ -146,6 +147,7 @@ function collideCars(a,b){
 }
 
 function updateWorld(dt){
+  updateWeapons(dt);
   const P=G.player;
   // ---------- coches ----------
   for(const c of G.cars){
@@ -179,16 +181,27 @@ function updateWorld(dt){
   const cops=G.cars.filter(c=>c.driver==='cop');
   const want=G.wanted*2;
   if(cops.length<want && Math.random()<dt*1.2) spawnCop();
-  if(G.wanted===0) for(const c of cops){ if(dist(c.x,c.y,P.x,P.y)>900){ c.dead=true; } else { c.driver=null; c.parked=true; } }
+  if(G.wanted===0) for(const c of cops){ if(c.patrol){ c.driver='ai'; const nr=nearestRoad(c.x,c.y,r=>r.drive&&r.kind!=='dirt'); c.road=nr.r.idx; c.s=nr.s; c.dir=1; continue; } if(dist(c.x,c.y,P.x,P.y)>900){ c.dead=true; } else { c.driver=null; c.parked=true; } }
   if(G.wanted>0){
-    const seen=cops.some(c=>copSees(c.x,c.y,c.z,650)) || G.officers.some(o=>o.hp>0&&o.state==='out'&&copSees(o.x,o.y,o.z,500));
-    if(!seen) G.evadeT+=dt; else G.evadeT=Math.max(0,G.evadeT-dt*2);
-    if(G.evadeT>5+G.wanted*2.5){ G.wanted--; G.evadeT=0; toast(G.wanted? 'Pierdes una estrella':'¡Has despistado a la policía!',2); }
+    // --- búsqueda estilo GTA: te ven → zona de búsqueda centrada en ti; fuera de la zona y sin que te vean, pierdes estrellas ---
+    const R=searchRadius(), units=G.cars.filter(c=>!c.dead&&(c.driver==='cop'||c.patrol));
+    const seen=units.some(c=>copSees(c.x,c.y,c.z,650+G.wanted*60)&&clearLine(c.x,c.y,P.x,P.y)) || G.officers.some(o=>o.hp>0&&o.state==='out'&&copSees(o.x,o.y,o.z,500)&&clearLine(o.x,o.y,P.x,P.y));
+    if(seen){
+      G.search={x:P.x,y:P.y,r:R}; G.lastSeen={x:P.x,y:P.y,z:P.z}; G.evadeT=0; G.policeState='visto';
+      // aviso por radio: las patrullas cercanas se unen a la persecución
+      for(const c of G.cars) if(c.patrol&&c.driver==='ai'&&!c.dead&&dist(c.x,c.y,P.x,P.y)<1800+G.wanted*300){ c.driver='cop'; c.siren=0; }
+    } else {
+      if(!G.search) G.search={x:P.x,y:P.y,r:R};
+      const inside=dist(P.x,P.y,G.search.x,G.search.y)<G.search.r;
+      G.policeState=inside?'cerca':'buscando';
+      if(inside) G.evadeT=Math.max(0,G.evadeT-dt*0.5); else G.evadeT+=dt;
+      if(G.evadeT>4+G.wanted*1.5){ G.wanted--; G.evadeT=0; G.search=G.wanted?{x:P.x,y:P.y,r:searchRadius()*0.6}:null; toast(G.wanted? 'Pierdes una estrella':'¡Has despistado a la policía!',2); }
+    }
     // arresto
     const spd=P.inCar?Math.abs(P.inCar.v):0;
     const close=cops.some(c=>Math.abs(c.z-P.z)<3 && dist(c.x,c.y,P.x,P.y)<75 && Math.abs(c.v)<120) || G.officers.some(o=>o.hp>0&&o.state==='out'&&Math.abs((o.z||0)-P.z)<3&&dist(o.x,o.y,P.x,P.y)<45);
     if(close && spd<40){ G.bustT+=dt; if(G.bustT>2.5 && !G.dead){ G.dead='busted'; G.deadT=3.5; sfx.star(); } } else G.bustT=Math.max(0,G.bustT-dt);
-  } else G.bustT=0;
+  } else { G.bustT=0; G.search=null; G.policeState=null; }
 
   // ---------- tráfico / peatones: mantener densidad ----------
   const traffic=G.cars.filter(c=>c.driver==='ai').length;
@@ -255,7 +268,7 @@ function updateWorld(dt){
     }
     if(Math.random()<dt*0.25) beep(o.dea?260:300,0.12,'sawtooth',0.015); // "¡Alto, policía!"
   }
-  for(const o of G.officers) if(o.hp<=0 && !o.dead){ o.dead=true; G.decals.push({x:o.x,y:o.y,r:14,c:'rgba(120,0,0,.7)'}); G.bodies=(G.bodies||[]); G.bodies.push({x:o.x,y:o.y,a:o.a,t:40,col:o.dea?'#1b1b1b':'#1d2b4a'}); setWanted(Math.max(G.wanted+1,3)); }
+  for(const o of G.officers) if(o.hp<=0 && !o.dead){ o.dead=true; G.decals.push({x:o.x,y:o.y,r:14,c:'rgba(120,0,0,.7)'}); G.bodies=(G.bodies||[]); G.bodies.push({x:o.x,y:o.y,z:o.z,a:o.a,t:40,col:o.dea?'#1b1b1b':'#1d2b4a'}); setWanted(Math.max(G.wanted+1,3)); }
   G.officers=G.officers.filter(o=>!o.dead&&!o.gone&&dist(o.x,o.y,P.x,P.y)<1600);
   if(G.bodies){ for(const b of G.bodies) b.t-=dt; G.bodies=G.bodies.filter(b=>b.t>0); }
 
@@ -357,7 +370,7 @@ function aiCop(c,dt){
     tx=P.x+pv.vx*k; ty=P.y+pv.vy*k;                              // punto de intercepción
     c.route=null;
   } else {
-    const L=G.lastSeen||{x:P.x,y:P.y,z:P.z};
+    const L=(G.policeState!=='visto'&&G.search&&searchPoint(c))||G.lastSeen||{x:P.x,y:P.y,z:P.z};
     c.routeT=(c.routeT||0)-dt;
     if(!c.route||c.routeT<=0||dist(c.goalX||0,c.goalY||0,L.x,L.y)>150){
       c.route=navRoute(c.x,c.y,c.z,L.x,L.y,L.z); c.ri=0; c.routeT=1.2; c.goalX=L.x; c.goalY=L.y; }
@@ -365,8 +378,7 @@ function aiCop(c,dt){
     while(c.ri<c.route.length-1 && dist(c.x,c.y,c.route[c.ri][0],c.route[c.ri][1])<90) c.ri++;
     [tx,ty]=c.route[c.ri];
     // llegó a donde te vio por última vez y no te ve: rastrea la zona
-    if(!sees && dist(c.x,c.y,L.x,L.y)<120 && c.ri>=c.route.length-1){
-      const nr=navProject(L.x+rand(-500,500),L.y+rand(-500,500)); G.lastSeen={x:nr.x,y:nr.y,z:nr.z}; }
+
   }
   const ta=Math.atan2(ty-c.y,tx-c.x);
   if(c.rev>0){ c.rev-=dt; driveCar(c,dt,false,true,Math.sign(angDiff(c.a,ta))*-1,false); return; }
@@ -406,4 +418,16 @@ function aiRide(c,dt){
   driveCar(c,dt,c.v<vmax&&left>120,c.v>vmax+40||left<120,clamp(diff*2.4,-1,1),false);
   if(Math.abs(c.v)<20&&left>120){ c.stuck=(c.stuck||0)+dt; if(c.stuck>1.5){ const p=c.route[Math.min(c.route.length-1,c.ri+1)]; c.x=p[0]; c.y=p[1]; c.z=spawnZ(p[0],p[1]); c.stuck=0; } } else c.stuck=0;
   c.arrived=left<130&&Math.abs(c.v)<40;
+}
+
+// radio de la zona de búsqueda según las estrellas (más estrellas, zona más grande)
+function searchRadius(){ return 520+G.wanted*240; }
+// punto de la zona de búsqueda al que va una patrulla que no te ve
+function searchPoint(c){
+  const S=G.search; if(!S) return null;
+  c.sT=(c.sT||0)-1/60;
+  if(!c.sP||c.sT<=0||dist(c.x,c.y,c.sP.x,c.sP.y)<140){
+    const a=Math.random()*6.283, r=Math.sqrt(Math.random())*S.r, nr=navProject(S.x+Math.cos(a)*r,S.y+Math.sin(a)*r);
+    c.sP={x:nr.x,y:nr.y,z:nr.z}; c.sT=7; c.route=null; }
+  return c.sP;
 }

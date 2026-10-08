@@ -98,7 +98,7 @@ addMissions([
       ['W','Todo lo que hice... lo hice por mí. Me gustaba. Se me daba bien. Y me sentía... vivo.'],
       ['N','Walter acaricia a Holly dormida. Se marcha.'],
     ]},
-    {type:'kill', n:6, hp:90, at:'jack', obj:'El complejo de Jack. Activa la ametralladora del maletero', start(){ giveGun(200); }, lines:[
+    {type:'kill', n:6, hp:90, at:'jack', obj:'El complejo de Jack. Activa la ametralladora del maletero', start(){ giveGun(60); giveWeapon('m60',400); }, lines:[
       ['N','Jesse estrangula a Todd con su propia cadena.'],
       ['JK','Si me matas, no sabrás dónde está tu dinero.'],
       ['N','Walter le dispara sin dejarle terminar.'],

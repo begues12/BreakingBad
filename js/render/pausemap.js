@@ -59,6 +59,7 @@ function drawPauseMap(t){
   ctx.textAlign='center'; ctx.font=`bold ${12*u}px "Segoe UI",Arial`;
   for(const k in LOC){ const L=LOC[k]; ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(L.x*S2,L.y*S2,4*u,0,7); ctx.fill();
     ctx.fillStyle='rgba(0,0,0,.7)'; ctx.fillText(L.name,L.x*S2+u,L.y*S2-8*u+u); ctx.fillStyle='#fff'; ctx.fillText(L.name,L.x*S2,L.y*S2-8*u); }
+  for(const c of G.cars) if(!c.dead&&(c.patrol||c.driver==='cop')) drawCopBlip(c,S2,PMAP.z/2,t);
   for(const m of activeMarkers()){ ctx.fillStyle=m.main?'#ffd23a':m.col; ctx.beginPath(); ctx.arc(m.x*S2,m.y*S2,(m.main?7:5)*u,0,7); ctx.fill(); }
   if(G.waypoint){ const x=G.waypoint.x*S2, y=G.waypoint.y*S2; // chincheta
     ctx.fillStyle='#ff4fa0'; ctx.beginPath(); ctx.arc(x,y-14*u,7*u,0,7); ctx.moveTo(x-6*u,y-11*u); ctx.lineTo(x,y); ctx.lineTo(x+6*u,y-11*u); ctx.fill();

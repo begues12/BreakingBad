@@ -5,13 +5,19 @@
 
 const NAV = (function(){
   const nodes=[], byKey=new Map();
-  const node=(key,x,y)=>{ if(byKey.has(key)) return byKey.get(key); const n={id:nodes.length,x,y,edges:[]}; nodes.push(n); byKey.set(key,n); return n; };
+  // un mismo cruce físico puede aparecer varias veces (con ids distintos): los nodos a menos de 45
+  // unidades se fusionan en uno, si no el grafo quedaba partido aunque las calles se tocasen
+  const grid=new Map(), gk=(x,y)=>Math.floor(x/90)*100000+Math.floor(y/90);
+  const node=(key,x,y)=>{ if(byKey.has(key)) return byKey.get(key);
+    for(let i=-1;i<=1;i++) for(let j=-1;j<=1;j++){ const l=grid.get(gk(x+i*90,y+j*90)); if(l) for(const n of l) if(Math.hypot(n.x-x,n.y-y)<45){ byKey.set(key,n); return n; } }
+    const n={id:nodes.length,x,y,edges:[]}; nodes.push(n); byKey.set(key,n); const k=gk(x,y); if(!grid.has(k)) grid.set(k,[]); grid.get(k).push(n); return n; };
   const stops=new Map(); // carretera -> [{s,node}] ordenado por s
   for(const r of ROADS){
     if(!r.drive) continue;
     const L=[];
     const a=pointAt(r,0), b=pointAt(r,r.len);
-    L.push({s:0,node:node('e'+r.idx+'a',a.x,a.y)}, {s:r.len,node:node('e'+r.idx+'b',b.x,b.y)});
+    const closed=dist(a.x,a.y,b.x,b.y)<Math.max(4,r.w*0.1), start=node('e'+r.idx+'a',a.x,a.y);
+    L.push({s:0,node:start}, {s:r.len,node:closed?start:node('e'+r.idx+'b',b.x,b.y)});
     for(const x of r.cross){ const c=CROSSINGS[x.id]; L.push({s:x.s,node:node('x'+x.id,c.x,c.y)}); }
     L.sort((p,q)=>p.s-q.s);
     stops.set(r,L);

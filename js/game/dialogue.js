@@ -14,6 +14,10 @@ const CHAR = {
   BA:{n:'Badger', c:'#5a5a3a', i:'BA'}, SP:{n:'Skinny Pete', c:'#3a3a3a', i:'SP'}, AN:{n:'Andrea Cantillo', c:'#6a4a5a', i:'AC'},
   VI:{n:'Victor', c:'#3a3a3a', i:'VI'}, TE:{n:'Ted Beneke', c:'#5a6a8a', i:'TB'}, HU:{n:'Huell Babineaux', c:'#2a2a2a', i:'HB'},
   GO:{n:'Agente Gomez', c:'#4a5a6a', i:'SG'}, PR:{n:'Los Primos', c:'#2a2a2a', i:'LP'}, DO:{n:'Donald Margolis', c:'#5a5a5a', i:'DM'},
+  BG:{n:'Bogdan Wolynetz', c:'#5a4a3a', i:'BW'}, HA:{n:'Hugo Archilleya', c:'#4a5a3a', i:'HA'}, OJ:{n:'Old Joe', c:'#6a5a4a', i:'OJ'},
+  CL:{n:'Clovis', c:'#5a4a4a', i:'CV'}, CO:{n:'Combo', c:'#4a4a5a', i:'CO'}, KW:{n:'Ken Wins', c:'#3a4a6a', i:'KW'}, FR:{n:'Francesca', c:'#6a4a5a', i:'FL'},
+  KE:{n:'Craig Kettleman', c:'#5a6a5a', i:'CK'}, GM:{n:'George Merkert', c:'#3a4a5a', i:'GM'}, KA:{n:'Kaylee', c:'#8a6a8a', i:'KE'},
+  LA:{n:'Lawson', c:'#4a3a2a', i:'LW'}, DW:{n:'Dan Wachsberger', c:'#4a4a5a', i:'DW'}, BR:{n:'Brock', c:'#6a7a8a', i:'BC'},
   SH:{n:'Sheriff', c:'#4a4a2a', i:'SH'}, X:{n:'Desconocido', c:'#333', i:'?'},
 };
 // line: [who, text] | {choices:[[text, fn]]} | function

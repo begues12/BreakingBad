@@ -91,7 +91,7 @@ function heightAt(x, y) {
   return h;
 }
 const heightGrid = new Uint8Array(HW * HH);
-for (let j = 0; j < HH; j++) for (let i = 0; i < HW; i++) heightGrid[j * HW + i] = clamp(Math.round((heightAt(i * HC + HC / 2, j * HC + HC / 2) + 4) * 4), 0, 255);
+heightGrid.fill(16); // terreno jugable plano a z=0; los biomas conservan su relieve visual
 
 const biomeGrid = new Uint8Array(BW * BH);
 for (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {
@@ -146,14 +146,13 @@ function splitBy(pts, ok) {
   ring.push(ring[0]);
   addRoad('Ruta de la costa', 'main', ring, 80);
 }
-// autopistas (trazado real: I-25 norte-sur al este del río, I-40 este-oeste; se cruzan en el "Big I")
-addRoad('I-25', 'hwy', [[7400, 1300], [7600, 3200], [8000, 5200]].concat(TL([[1205,205],[1185,300],[1150,430],[1100,540],[1060,620],[1045,700],[1042,800],[1035,950],[1025,1050],[1010,1150]])).concat([[6200, 14900]]), 70);
-addRoad('I-40', 'hwy', [[900, 9700]].concat(TL([[665,770],[730,740],[790,705],[900,668],[980,662],[1045,670],[1150,690],[1270,730],[1335,760]])).concat([[11050, 11700]]), 70);
 // avenidas (dentro del área urbana)
 const inCityRoad = (x, y) => onLand(x, y) && cityDist(x, y) < 250;
 function avenue(name, rpts) { for (const piece of splitBy(catmull(TL(rpts), 70), inCityRoad)) if (piece.length > 4) addRoad(name, 'main', piece, 70); }
 avenue('Central Ave (Ruta 66)', [[650,800],[720,790],[800,768],[860,748],[920,738],[960,735],[1010,742],[1050,746],[1120,752],[1200,760],[1280,766],[1345,772]]);
-avenue('Paseo del Norte', [[760,470],[860,470],[960,468],[1060,465],[1160,462],[1260,462],[1340,465]]);
+// Llevar el cruce con 4th Street bastante al norte para que quede en terreno
+// plano y separado de la rampa del puente de 4th Street.
+avenue('Paseo del Norte', [[760,470],[860,470],[920,445],[960,395],[990,365],[1030,350],[1160,350],[1260,352],[1340,355]]);
 avenue('Montgomery Blvd', [[1060,600],[1160,600],[1260,600],[1340,600]]);
 avenue('Menaul Blvd', [[930,648],[1030,650],[1130,652],[1230,652],[1340,652]]);
 avenue('Lomas Blvd', [[960,712],[1050,714],[1150,716],[1250,718],[1340,720]]);
@@ -171,7 +170,6 @@ avenue('Tramway Blvd', [[1220,330],[1300,360],[1336,450],[1338,600],[1336,740]])
 avenue('Unser Blvd', [[700,420],[710,560],[705,700],[700,820]]);
 // calles: en los Heights (al este de la I-25) cuadrícula regular; al oeste y al sur, algo más irregular
 const riverOK = (x, y) => polyDist(x, y, RIVER) > RIVER_W / 2 + 160;
-const hwyOK = (x, y) => roads.filter(r => r.kind === 'hwy').every(r => polyDist(x, y, r.pts) > 230);
 let sn = 1;
 const ok = (x, y) => cityDist(x, y) < -120 && riverOK(x, y) && land(x, y) > 0.1;
 for (let y = 6400; y < H; y += 880) {
@@ -202,17 +200,8 @@ addRoad('Camino del rancho', 'dirt', [[7500, 2900], [8600, 2500], [9200, 2100]],
 addRoad('Ferrocarril BNSF', 'rail', [[6600, 1500], [7100, 3400]].concat(TL([[1170,210],[1130,330],[1080,470],[1030,580],[1010,700],[1005,770],[1000,880],[985,1000],[970,1120]])).concat([[5000, 14900]]), 70);
 
 // autopistas: los extremos que caen en el mar se recortan y se enlazan con la carretera de la costa
-{ const coast = roads.find(r => r.name === 'Ruta de la costa');
-  for (const r of roads.filter(r => r.kind === 'hwy')) {
-    while (r.pts.length > 2 && land(...r.pts[0]) < 0.06) r.pts.shift();
-    while (r.pts.length > 2 && land(...r.pts[r.pts.length - 1]) < 0.06) r.pts.pop();
-    for (const end of [0, 1]) { const p = end ? r.pts[r.pts.length - 1] : r.pts[0]; let best = null, bd = 1e9;
-      for (const q of coast.pts) { const d = dist(p[0], p[1], q[0], q[1]); if (d < bd) { bd = d; best = q; } }
-      if (best && bd < 1500) { const seg = []; const k = Math.ceil(bd / 70); for (let i = 1; i <= k; i++) seg.push([Math.round(p[0] + (best[0] - p[0]) * i / k), Math.round(p[1] + (best[1] - p[1]) * i / k)]);
-        if (end) r.pts.push(...seg); else r.pts.unshift(...seg.reverse()); } } } }
-
 // quitar tramos que van en paralelo y casi encima de otra carretera más importante (formaban explanadas de asfalto)
-{ const rank = { hwy: 3, main: 2, ramp: 2, street: 1, dirt: 0, rail: -1 };
+{ const rank = { main: 2, street: 1, dirt: 0, rail: -1 };
   const segDir = (P, i) => { const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)]; return Math.atan2(b[1] - a[1], b[0] - a[0]); };
   const keep = [];
   for (const r of roads) {
@@ -228,73 +217,118 @@ addRoad('Ferrocarril BNSF', 'rail', [[6600, 1500], [7100, 3400]].concat(TL([[117
   }
   roads.length = 0; roads.push(...keep); }
 
-// enlazar los finales sueltos de calles y avenidas con la carretera más cercana (sin cruzar el río)
-{ const near = (p, self) => roads.some(o => o !== self && o.kind !== 'hwy' && o.kind !== 'rail' && polyDist(p[0], p[1], o.pts) < 90);
-  for (const r of roads) { if (r.kind === 'hwy' || r.kind === 'rail' || r.kind === 'ramp') continue;
-    for (const end of [0, 1]) { const p = end ? r.pts[r.pts.length - 1] : r.pts[0]; if (near(p, r)) continue;
-      let best = null, bd = 900;
-      for (const o of roads) { if (o === r || o.kind === 'hwy' || o.kind === 'rail' || o.kind === 'ramp') continue;
-        for (const q of o.pts) { const d = dist(p[0], p[1], q[0], q[1]); if (d >= bd || d < 1) continue;
-          let wet = false; for (let k = 0; k <= 12; k++) { const x = p[0] + (q[0] - p[0]) * k / 12, y = p[1] + (q[1] - p[1]) * k / 12; if (polyDist(x, y, RIVER) < RIVER_W / 2 + 60 || land(x, y) < 0.05) { wet = true; break; } }
-          if (!wet) { bd = d; best = q; } } }
+// la vía del tren no se mete en el mar
+for (const r of roads) if (r.kind === 'rail') { while (r.pts.length > 2 && land(...r.pts[0]) < 0.08) r.pts.shift(); while (r.pts.length > 2 && land(...r.pts[r.pts.length - 1]) < 0.08) r.pts.pop(); }
+
+// ---------- desenredar: cruces limpios de solo dos calles ----------
+// Reglas: en un cruce solo se encuentran dos calles; nada de cruces muy oblicuos; los cruces van
+// separados. Cuando no se cumple, se recorta la calle menos importante cerca del cruce.
+const RANK = { hwy: 3, main: 2, street: 1 };
+const ground = r => r.kind === 'main' || r.kind === 'street' || r.kind === 'hwy';
+const roadLen = r => { let L = 0; for (let i = 1; i < r.pts.length; i++) L += dist(r.pts[i-1][0], r.pts[i-1][1], r.pts[i][0], r.pts[i][1]); return L; };
+function crossingsOf(list) {
+  const out = [], box = r => { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const p of r.pts) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); } return [x0, y0, x1, y1]; };
+  const B = list.map(box);
+  for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+    const A = list[i], C = list[j], a = B[i], c = B[j]; if (a[0] > c[2] + 200 || c[0] > a[2] + 200 || a[1] > c[3] + 200 || c[1] > a[3] + 200) continue;
+    for (let k = 0; k < A.pts.length - 1; k++) { const p = A.pts[k], q = A.pts[k + 1];
+      for (let m = 0; m < C.pts.length - 1; m++) { const u = C.pts[m], v = C.pts[m + 1];
+        const d1x = q[0] - p[0], d1y = q[1] - p[1], d2x = v[0] - u[0], d2y = v[1] - u[1], den = d1x * d2y - d1y * d2x; if (Math.abs(den) < 1e-6) continue;
+        const t = ((u[0] - p[0]) * d2y - (u[1] - p[1]) * d2x) / den, w = ((u[0] - p[0]) * d1y - (u[1] - p[1]) * d1x) / den;
+        if (t < 0 || t > 1 || w < 0 || w > 1) continue;
+        let ang = Math.abs(Math.atan2(d1y, d1x) - Math.atan2(d2y, d2x)) % Math.PI; ang = Math.min(ang, Math.PI - ang);
+        out.push({ x: p[0] + d1x * t, y: p[1] + d1y * t, a: A, b: C, ang }); } } }
+  // cruces en T: una calle que termina dentro de otra
+  for (const A of list) for (const e of [0, A.pts.length - 1]) { const p = A.pts[e], q = A.pts[e ? e - 1 : 1];
+    for (const C of list) { if (C === A) continue; let bd = 1e9, bj = 0; for (let j = 0; j < C.pts.length - 1; j++) { const d = segDist(p[0], p[1], C.pts[j][0], C.pts[j][1], C.pts[j + 1][0], C.pts[j + 1][1]); if (d < bd) { bd = d; bj = j; } }
+      if (bd > 100) continue;
+      let ang = Math.abs(Math.atan2(p[1] - q[1], p[0] - q[0]) - Math.atan2(C.pts[bj + 1][1] - C.pts[bj][1], C.pts[bj + 1][0] - C.pts[bj][0])) % Math.PI; ang = Math.min(ang, Math.PI - ang);
+      if (!out.some(o => dist(o.x, o.y, p[0], p[1]) < 60 && ((o.a === A && o.b === C) || (o.a === C && o.b === A)))) out.push({ x: p[0], y: p[1], a: A, b: C, ang, tee: true }); } }
+  return out;
+}
+// quita los puntos de una calle a menos de `rad` de (x,y) y la parte en trozos
+function cutRoad(r, x, y, rad) {
+  const pieces = []; let cur = [];
+  for (const p of r.pts) { if (dist(p[0], p[1], x, y) < rad) { if (cur.length) pieces.push(cur); cur = []; } else cur.push(p); }
+  if (cur.length) pieces.push(cur);
+  const keep = pieces.filter(pc => pc.length > 4);
+  const i = roads.indexOf(r); roads.splice(i, 1);
+  for (const pc of keep) roads.push({ id: rid++, name: r.name, kind: r.kind, pts: pc });
+}
+const weaker = (a, b) => (RANK[a.kind] !== RANK[b.kind]) ? (RANK[a.kind] < RANK[b.kind] ? a : b) : (roadLen(a) < roadLen(b) ? a : b);
+function untangle() {
+for (let iter = 0; iter < 40; iter++) {
+  const cs = crossingsOf(roads.filter(ground)), cuts = [], touched = new Set();
+  const cut = (r, x, y, rad) => { if (touched.has(r) || r.kind === 'hwy') return; touched.add(r); cuts.push([r, x, y, rad]); };
+  for (const c of cs) {
+    if (touched.has(c.a) || touched.has(c.b)) continue;
+    // a las autopistas solo las cruzan avenidas
+    if ((c.a.kind === 'hwy') !== (c.b.kind === 'hwy')) { const o = c.a.kind === 'hwy' ? c.b : c.a; if (o.kind === 'street') { cut(o, c.x, c.y, 300); continue; } }
+    if (c.ang < 0.7) { cut(weaker(c.a, c.b), c.x, c.y, 260); continue; }                 // cruce muy oblicuo
+    const near = cs.find(o => o !== c && dist(o.x, o.y, c.x, c.y) < 420 && new Set([c.a.name, c.b.name, o.a.name, o.b.name]).size > 2);
+    if (near) { let w = c.a; for (const r of [c.b, near.a, near.b]) w = weaker(w, r); cut(w, (c.x + near.x) / 2, (c.y + near.y) / 2, 300); }
+  }
+  if (process.env.DBG) console.log('pasada',iter,'cruces',cs.length,'recortes',cuts.length);
+  if (!cuts.length) break;
+  for (const [r, x, y, rad] of cuts) cutRoad(r, x, y, rad);
+}
+}
+untangle();
+// enlazar los finales sueltos solo si el enlace es limpio: casi perpendicular y lejos de otros cruces
+{ const cs = crossingsOf(roads.filter(ground));
+  for (const r of roads) { if (!ground(r)) continue;
+    for (const end of [0, 1]) { const p = end ? r.pts[r.pts.length - 1] : r.pts[0], q = end ? r.pts[r.pts.length - 3] : r.pts[2]; if (!q) continue;
+      if (roads.some(o => o !== r && ground(o) && polyDist(p[0], p[1], o.pts) < 90)) continue;
+      const dirA = Math.atan2(p[1] - q[1], p[0] - q[0]); let best = null, bd = 700;
+      for (const o of roads) { if (o === r || !ground(o) || (o.kind === 'hwy' && r.kind === 'street')) continue;
+        for (let j = 1; j < o.pts.length - 1; j++) { const t = o.pts[j], d = dist(p[0], p[1], t[0], t[0] === t[0] ? t[1] : 0); if (d >= bd || d < 1) continue;
+          const toward = Math.atan2(t[1] - p[1], t[0] - p[0]); let dev = Math.abs(toward - dirA) % (2 * Math.PI); dev = Math.min(dev, 2 * Math.PI - dev); if (dev > 0.6) continue;  // hacia delante
+          const oa = Math.atan2(o.pts[j + 1][1] - o.pts[j - 1][1], o.pts[j + 1][0] - o.pts[j - 1][0]); let ang = Math.abs(toward - oa) % Math.PI; ang = Math.min(ang, Math.PI - ang); if (ang < 0.9) continue;  // casi perpendicular
+          if (cs.some(c => dist(c.x, c.y, t[0], t[1]) < 380)) continue;                       // lejos de otros cruces
+          let wet = false; for (let k = 0; k <= 10; k++) { const x = p[0] + (t[0] - p[0]) * k / 10, y = p[1] + (t[1] - p[1]) * k / 10; if (polyDist(x, y, RIVER) < RIVER_W / 2 + 60 || land(x, y) < 0.05) { wet = true; break; } }
+          if (!wet) { bd = d; best = t; } } }
       if (!best) continue;
       const seg = [], k = Math.max(1, Math.ceil(bd / 70)); for (let i = 1; i <= k; i++) seg.push([Math.round(p[0] + (best[0] - p[0]) * i / k), Math.round(p[1] + (best[1] - p[1]) * i / k)]);
       if (end) r.pts.push(...seg); else r.pts.unshift(...seg.reverse()); } } }
+// segunda pasada: los enlaces nuevos tampoco pueden formar cruces amontonados
+untangle();
+// las calles que se han quedado muy cortas sobran (antes de comprobar la conectividad)
+for (let i = roads.length - 1; i >= 0; i--) if (ground(roads[i]) && roads[i].kind !== 'hwy' && roadLen(roads[i]) < 500) roads.splice(i, 1);
+// conectividad: toda carretera transitable tiene que estar unida a la red principal. Las que se han
+// quedado aisladas (tramos recortados, caminos de tierra) se enlazan con la carretera conectada más cercana.
+{ const drive = r => r.kind !== 'rail';
+  for (let pass = 0; pass < 12; pass++) {
+    const list = roads.filter(drive), idx = new Map(list.map((r, i) => [r, i])), adj = list.map(() => []);
+    const touch = (a, b) => { for (const e of [a.pts[0], a.pts[a.pts.length - 1]]) if (polyDist(e[0], e[1], b.pts) < 100) return true; return false; };
+    for (const c of crossingsOf(list)) { adj[idx.get(c.a)].push(idx.get(c.b)); adj[idx.get(c.b)].push(idx.get(c.a)); }
+    for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) if (touch(list[i], list[j]) || touch(list[j], list[i])) { adj[i].push(j); adj[j].push(i); }
+    // componente principal = la de la carretera de la costa
+    const seen = new Set(); let st = [list.findIndex(r => r.name === 'Ruta de la costa')]; seen.add(st[0]);
+    while (st.length) { const i = st.pop(); for (const j of adj[i]) if (!seen.has(j)) { seen.add(j); st.push(j); } }
+    const lost = list.filter((r, i) => !seen.has(i)); if (!lost.length) break;
+    const conn = list.filter((r, i) => seen.has(i));
+    for (const r of lost) { let best = null, bd = 2500, bend = 0;
+      for (const end of [0, 1]) { const p = end ? r.pts[r.pts.length - 1] : r.pts[0];
+        for (const o of conn) for (const q of o.pts) { const d = dist(p[0], p[1], q[0], q[1]); if (d >= bd) continue;
+          let wet = false; for (let k = 0; k <= 12; k++) { const x = p[0] + (q[0] - p[0]) * k / 12, y = p[1] + (q[1] - p[1]) * k / 12; if (polyDist(x, y, RIVER) < RIVER_W / 2 + 40 || land(x, y) < 0.05) { wet = true; break; } }
+          if (!wet) { bd = d; best = q; bend = end; } } }
+      if (!best) continue;
+      const p = bend ? r.pts[r.pts.length - 1] : r.pts[0], seg = [], k = Math.max(1, Math.ceil(bd / 70));
+      for (let i = 1; i <= k; i++) seg.push([Math.round(p[0] + (best[0] - p[0]) * i / k), Math.round(p[1] + (best[1] - p[1]) * i / k)]);
+      if (bend) r.pts.push(...seg); else r.pts.unshift(...seg.reverse());
+      break;   // de uno en uno: tras cada enlace se recalcula la red
+    }
+  } }
+for (let i = roads.length - 1; i >= 0; i--) if (ground(roads[i]) && roadLen(roads[i]) < 500) roads.splice(i, 1);
 
 // ---------- altura de las carreteras ----------
 // Las autopistas van elevadas (z=9) por la ciudad y sobre el río; bajan a ras de suelo en el desierto.
 // Las avenidas que cruzan el río van en puente.
-const groundZ = (x, y) => heightAt(x, y);
-for (const r of roads) {
-  if (r.kind === 'hwy') {
-    for (const p of r.pts) { const urban = (cityDist(p[0], p[1]) < 200 || polyDist(p[0], p[1], RIVER) < RIVER_W) && land(p[0], p[1]) > 0.16; if (urban) p[2] = 9; }
-  } else if (r.kind !== 'rail') {
-    for (const p of r.pts) if (polyDist(p[0], p[1], RIVER) < RIVER_W / 2 + 140) p[2] = 3;
-  }
+for(const r of roads){
+  if(r.kind==='rail') continue;
+  r.bridge=r.pts.some(p=>polyDist(p[0],p[1],RIVER)<RIVER_W/2);
+  for(const p of r.pts) delete p[2];
 }
-// rampas suaves: interpolar la altura hacia el suelo en los extremos de cada tramo elevado
-for (const r of roads) {
-  const P = r.pts, n = P.length, RAMP = r.kind === 'hwy' ? 8 : 3;   // puntos de rampa (~70 u cada uno)
-  const zs = P.map(p => p[2]);
-  for (let i = 0; i < n; i++) {
-    if (zs[i] !== undefined) continue;
-    // distancia (en puntos) al tramo elevado más cercano
-    let best = null;
-    for (let d = 1; d <= RAMP; d++) { for (const j of [i - d, i + d]) if (j >= 0 && j < n && zs[j] !== undefined) { best = { d, z: zs[j] }; break; } if (best) break; }
-    if (best) { const g = groundZ(P[i][0], P[i][1]), t = best.d / (RAMP + 1); P[i][2] = +(best.z + (g - best.z) * t * t * (3 - 2 * t)).toFixed(2); }
-  }
-}
-// rampas de acceso a la I-25 y la I-40 en la ciudad: desde una avenida suben en paralelo hasta el tablero
-function rampFrom(hwyName, nearX, nearY, side) {
-  const h = roads.find(r => r.name === hwyName);
-  let bi = 0, bd = 1e9; h.pts.forEach((p, i) => { const d = dist(p[0], p[1], nearX, nearY); if (d < bd) { bd = d; bi = i; } });
-  const a = h.pts[Math.max(0, bi - 1)], b = h.pts[Math.min(h.pts.length - 1, bi + 1)], ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
-  const nx = Math.cos(ang + Math.PI / 2) * side, ny = Math.sin(ang + Math.PI / 2) * side, ux = Math.cos(ang), uy = Math.sin(ang);
-  const startAnchor = h.pts[Math.min(h.pts.length - 1, bi + 9)];
-  // Never attach an access ramp to the ground-level tail after a bridge deck.
-  let merge = null;
-  for (let i = bi; i <= Math.min(h.pts.length - 1, bi + 9); i++) if (h.pts[i][2] >= 8.5) merge = h.pts[i];
-  if (!merge) merge = h.pts[bi];
-  let start = [startAnchor[0] - ux * 900 + nx * 230, startAnchor[1] - uy * 900 + ny * 230];
-  // Snap the low end to the nearest surface street so the navigation graph has
-  // a real junction instead of a ramp that only looks connected from a distance.
-  let snap = null, snapD = 300;
-  for (const r of roads) if (r.kind === 'main' || r.kind === 'street') for (let i = 0; i < r.pts.length - 1; i++) {
-    const p = r.pts[i], q = r.pts[i + 1], dx = q[0] - p[0], dy = q[1] - p[1], l = dx * dx + dy * dy;
-    const t = l ? clamp(((start[0] - p[0]) * dx + (start[1] - p[1]) * dy) / l, 0, 1) : 0;
-    const x = p[0] + dx * t, y = p[1] + dy * t, d = dist(start[0], start[1], x, y);
-    if (d < snapD) { snapD = d; snap = [x, y]; }
-  }
-  if (snap) start = snap;
-  start = start.map(Math.round);
-  const pts = [];
-  for (let k = 0; k <= 14; k++) { const t = k / 14, e = t * t * (3 - 2 * t);
-    pts.push([Math.round(start[0] + (merge[0] - start[0]) * t), Math.round(start[1] + (merge[1] - start[1]) * t), 0]);
-    const g = groundZ(pts[k][0], pts[k][1]); pts[k][2] = +(g + (merge[2] - g) * e).toFixed(2); }
-  // el inicio se engancha a la avenida más cercana (a nivel)
-  roads.push({ id: rid++, name: 'Acceso ' + hwyName, kind: 'ramp', pts });
-}
-for (const [hn, rx, ry, s] of [['I-25',1100,540,1],['I-25',1042,800,-1],['I-25',1030,1000,1],['I-40',800,705,1],['I-40',1150,690,-1],['I-40',1270,730,1]]) rampFrom(hn, ...T(rx, ry), s);
 
 // ---------- lugares de la historia ----------
 // Posiciones del mapa de referencia (números rojos de "Breaking maP"); los lugares sin número se

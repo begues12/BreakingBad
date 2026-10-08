@@ -44,15 +44,27 @@ document.getElementById('c').id='c';
 <script src="../js/cutscenes/t3.js"></script>
 <script src="../js/cutscenes/t4.js"></script>
 <script src="../js/cutscenes/t5.js"></script>
+<script src="../js/game/missions.js"></script>
+<script src="../js/missions/t1.js"></script>
+<script src="../js/missions/t2.js"></script>
+<script src="../js/missions/t3.js"></script>
+<script src="../js/missions/t4.js"></script>
+<script src="../js/missions/t5a.js"></script>
+<script src="../js/missions/t5b.js"></script>
+<script>
+// escenas que están dentro de las misiones (pasos 'cine'): también se listan, como "1x07 · misión"
+for(const M of MISSIONS) for(const S of M.steps) if(S.type==='cine'){ const k=M.code+' · misión'; CUTSCENES[k]=(CUTSCENES[k]||[]).concat(S.scenes); }
+</script>
 <script>
 "use strict";
 // estado mínimo para las cinemáticas (el capítulo decide el aspecto de Walter)
 var G={mi:0,clock:12*60,cine:null};
 function heisLook(){ return G.mi>=ORDER.indexOf('2x01') && G.mi<ORDER.indexOf('5x15'); }
+function missionIdx(c){ return ORDER.indexOf(c); }
 const ORDER=Object.keys(CUTSCENES);
 let cur=null;
 function play(code,si){
-  cur={code,si}; G.mi=ORDER.indexOf(code);
+  cur={code,si}; G.mi=ORDER.indexOf(code.split(' ')[0]);
   for(const b of document.querySelectorAll('#list button')) b.classList.toggle('on',b.dataset.k===code+'/'+si);
   playCutscene(CUTSCENES[code].slice(si,si+1),()=>play(code,si));
 }

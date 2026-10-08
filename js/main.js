@@ -11,12 +11,15 @@ function loop(now){
   const w0=performance.now();
   const dt=Math.min(0.05,(now-last)/1000); last=now;
   const t=now/1000;
-  if(!started){ drawTitle(t); }
+  // menú de pruebas (F9): disponible en la pantalla de título y durante la partida
+  if(pressed['f9']&&!DEV.open){ if(!started){ newGame(); started=true; } devToggle(); for(const k in pressed) delete pressed[k]; }
+  if(DEV.open){ devUpdate(); if(DEV.open) drawDevMenu(); else { draw(t); } }
+  else if(!started){ drawTitle(t); }
   else {
     if(pressed['p']||pressed['escape']||pressed['m']){ paused=!paused; if(!paused) closePauseMap(); }
     if(paused) drawPauseMap(t);
     else { const f0=performance.now(); update(dt); const f1=performance.now(); draw(t); const f2=performance.now();
-      if(G.camLock){ DBG.u=DBG.u*0.9+(f1-f0)*0.1; DBG.d=DBG.d*0.9+(f2-f1)*0.1; DBG.n++; txt('update '+DBG.u.toFixed(1)+' ms · draw '+DBG.d.toFixed(1)+' ms · frames '+DBG.n,VW/2,VH-30,16,'#0f0','center'); } }
+      if(G.camLock||DEV.fps){ DBG.u=DBG.u*0.9+(f1-f0)*0.1; DBG.d=DBG.d*0.9+(f2-f1)*0.1; DBG.n++; txt('update '+DBG.u.toFixed(1)+' ms · draw '+DBG.d.toFixed(1)+' ms · frames '+DBG.n,VW/2,VH-30,16,'#0f0','center'); } }
   }
   if(BENCH) BENCH.work.push(performance.now()-w0);
   for(const k in pressed) delete pressed[k];
@@ -29,6 +32,7 @@ if(/[?&#]debug/.test(location.search+location.hash)){
   const at=(q.get('at')||'').split(',').map(Number);
   if(at.length===2&&!isNaN(at[0])){ const P=G.player; P.x=at[0]; P.y=at[1]; P.z=spawnZ(at[0],at[1]); for(const c of G.cars) if(c.owned){ c.x=P.x+60; c.y=P.y; c.z=spawnZ(c.x,c.y); } }
   if(q.get('clock')) G.clock=+q.get('clock');
+  if(q.has('weapons')){ for(const w of WEAPONS) if(w.id!=='fists') addAmmo(w.id,30); G.wShow=99; G.player.wsel='m60'; }
   if(q.get('mg')) startMinigame({game:q.get('mg'),title:'Prueba: '+q.get('mg'),opts:{}},()=>{},()=>{});
   if(q.has('bench')) BENCH={t0:performance.now(),dir:9,work:[],gap:[],last:0};   // ver loop(): 8 s conduciendo de verdad
   if(q.get('cine')){ const sc=CUTSCENES[q.get('cine')]; const si=+(q.get('scene')||0), sh=+(q.get('shot')||0); playCutscene(sc.slice(si,si+1)); G.cine.shi=sh; G.cine.t=+(q.get('t')||1.2); G.cine.hold=true; }

@@ -82,11 +82,7 @@ addCutscenes('1x06',[
   ]},
 ]);
 addCutscenes('1x07',[
-  {title:'1x07 · Escena 1 — El robo de la metilamina', shots:[
-    wide('warehouse','night',[ch('W',0.35,{act:'walkin'}),ch('J',0.5,{act:'walkin'})],'Un almacén químico de noche. Walter planifica como un criminal.',{props:[{t:'barrel',x:0.78}]}),
-    med('warehouse','night',[ch('J',0.4,{pose:'walk'}),ch('W',0.58,{pose:'walk'})],'',{say:['J','¡Un barril entero, tío!'],props:[{t:'barrel',x:0.8}],move:'pan'}),
-  ]},
-  {title:'1x07 · Escena 2 — Walter enseña el producto a Tuco', shots:[
+  {title:'1x07 · Escena final — Walter enseña el producto a Tuco', shots:[
     det('crystal','junkyard','hard','Dos libras. Pureza del 99%.'),
     close('T','junkyard','hard','',{say:['T','¡Esto es lo que quiero ver! ¡Azul!'],move:'fast',dur:2.4}),
     close('W','junkyard','hard','La relación de poder empieza a cambiar.',{move:'push'}),

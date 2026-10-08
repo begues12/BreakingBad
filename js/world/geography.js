@@ -15,7 +15,7 @@ function groundZ(x,y){ return mapHeight(MAP,MAPL,x,y); }
 function isWaterAt(x,y){ const b=BIOMES[biomeAt(x,y)]; return !!(b&&b.water); }
 function isDesert(x,y){ const b=biomeAt(x,y); return b===BIOME_ID.desert||b===BIOME_ID.rock; }
 const STEP_UP = 1.6;      // desnivel máximo que se salva de un paso (bordillo, rampa)
-const DECK = 2.5;          // a partir de esta altura sobre el suelo se considera "en un puente"
+const DECK = 1.2;          // coincide con el inicio visual del tablero elevado
 
 // --- carreteras ---
 const RW = {hwy:255, main:186, street:138, ramp:130, dirt:114, rail:70};
@@ -27,7 +27,7 @@ const ROADS = MAP.roads.map((r,idx)=>{
   for(let i=1;i<pts.length;i++) cum.push(cum[i-1]+dist(pts[i-1][0],pts[i-1][1],pts[i][0],pts[i][1]));
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; for(const p of pts){ x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1]); }
   const path=new Path2D(); pts.forEach((p,i)=>i?path.lineTo(p[0],p[1]):path.moveTo(p[0],p[1]));
-  return {idx,name:r.name,kind:r.kind,pts,zs,elev,w,cum,len:cum[cum.length-1],path,bb:[x0-w,y0-w,x1+w,y1+w],cross:[],ends:[false,false],
+  return {idx,name:r.name,kind:r.kind,bridge:!!r.bridge,pts,zs,elev,w,cum,len:cum[cum.length-1],path,bb:[x0-w,y0-w,x1+w,y1+w],cross:[],ends:[false,false],
     lane:r.kind==='hwy'?w*0.25:w*0.24, drive:r.kind!=='rail'};
 });
 function pointAt(r,s){
@@ -50,6 +50,15 @@ for(const r of ROADS) for(let i=0;i<r.pts.length-1;i++){
 function segsAt(x,y){ return SEGGRID.get(Math.floor(x/SEGC)*10000+Math.floor(y/SEGC))||[]; }
 function segT(sg,x,y){ const dx=sg.x2-sg.x1, dy=sg.y2-sg.y1, l=dx*dx+dy*dy; return l?clamp(((x-sg.x1)*dx+(y-sg.y1)*dy)/l,0,1):0; }
 function segZ(sg,x,y){ return sg.z1+(sg.z2-sg.z1)*segT(sg,x,y); }
+function roadSurfaceAt(x,y,z,filter){
+  let best=null,bd=Infinity;
+  for(const sg of segsAt(x,y)){
+    if(filter&&!filter(sg.r)||segDist(x,y,sg.x1,sg.y1,sg.x2,sg.y2)>sg.w/2+4) continue;
+    const t=segT(sg,x,y), rz=segZ(sg,x,y), d=Math.abs(rz-z);
+    if(d<bd){ bd=d; best={r:sg.r,z:rz,s:sg.s0+Math.hypot(sg.x2-sg.x1,sg.y2-sg.y1)*t,d,off:segDist(x,y,sg.x1,sg.y1,sg.x2,sg.y2),e:rz-groundZ(x,y)}; }
+  }
+  return best;
+}
 // calzada en (x,y); con z, solo la que está a esa altura
 function roadAt(x,y,pad,z){ pad=pad||0; for(const s of segsAt(x,y)) if(segDist(x,y,s.x1,s.y1,s.x2,s.y2)<s.w/2+pad && (z===undefined||Math.abs(segZ(s,x,y)-z)<3)) return s; return null; }
 function isRoad(x,y,z){ if(x<0||y<0||x>WW||y>WH) return false; return !!roadAt(x,y,0,z); }
@@ -61,9 +70,44 @@ function surfacesAt(x,y){
   return out;
 }
 // altura a la que quedaría algo que está a altura z y se mueve a (x,y); null si no puede (pretil, agua, desnivel)
-function standZ(x,y,z,step){
+function standZ(x,y,z,step,fromX,fromY){
   step=step||STEP_UP; let best=null,bd=step;
+  // una calzada al alcance de un paso tiene prioridad sobre el terreno: así se sube por las rampas
+  // desde el primer centímetro (antes se quedaba pegado al suelo y acababa pasando por debajo del tablero)
+  // (de las calzadas al alcance, la del tramo más cercano: es por la que vas, no la del tramo anterior)
+  let road=null, rdist=1e9;
+  for(const sg of segsAt(x,y)){ const dd=segDist(x,y,sg.x1,sg.y1,sg.x2,sg.y2); if(dd>=sg.w/2+4) continue; const sz=segZ(sg,x,y); if(Math.abs(sz-z)>step) continue; if(dd<rdist-0.5){ rdist=dd; road=sz; } }
+  if(road!==null) return road;
   for(const s of surfacesAt(x,y)){ const d=Math.abs(s-z); if(d<=bd){ bd=d; best=s; } }
+  return best;
+}
+// El peatÃ³n conserva la capa en la que estÃ¡: para cambiar entre suelo y tablero
+// debe usar el extremo de una rampa, nunca cruzar el pretil por el lateral.
+function walkStandZ(x0,y0,x,y,z,step){
+  step=step||STEP_UP;
+  const fromDeck=z-groundZ(x0,y0)>DECK, ground=groundZ(x,y), options=[]; let preferred=null;
+  const prior=roadSurfaceAt(x0,y0,z), groundD=Math.abs(z-groundZ(x0,y0));
+  const onPrior=prior&&prior.d<=step&&prior.off<prior.r.w/2-10&&(prior.d+0.1<groundD||Math.abs(prior.e)<=0.1);
+  const moved=Math.hypot(x-x0,y-y0);
+  if(!fromDeck&&!isWaterAt(x,y)) options.push(ground);
+  for(const sg of segsAt(x,y)){
+    if(segDist(x,y,sg.x1,sg.y1,sg.x2,sg.y2)>sg.w/2+4) continue;
+    const t=segT(sg,x,y), rz=segZ(sg,x,y), e=rz-ground, s=sg.s0+Math.hypot(sg.x2-sg.x1,sg.y2-sg.y1)*t;
+    if(Math.abs(rz-z)>step) continue;
+    const high=e>DECK;
+    const sameRoad=onPrior&&prior.r===sg.r&&Math.abs(s-prior.s)>=moved*0.35;
+    const sameHighLayer=fromDeck&&high&&onPrior&&prior.e>DECK;
+    const end=Math.max(36,sg.r.w*0.35);
+    const atLow=sg.r.ends[0]&&s<=end, atHigh=sg.r.ends[1]&&sg.r.len-s<=end;
+    if(!fromDeck&&high&&!(sameRoad||sg.r.kind==='ramp'&&atLow)) continue;
+    if(sg.r.kind==='ramp'&&!sameRoad&&!sameHighLayer&&!(fromDeck&&atHigh)&&!(!fromDeck&&atLow)) continue;
+    if(fromDeck&&!high&&!sameRoad&&!(onPrior&&prior.r.kind==='ramp'&&prior.s<=end)) continue;
+    if(!fromDeck&&(sameRoad&&e>0.1||sg.r.kind==='ramp'&&atLow)) preferred=rz;
+    options.push(rz);
+  }
+  if(preferred!==null) return preferred;
+  let best=null,bd=step;
+  for(const value of options){ const d=Math.abs(value-z); if(d<=bd){ bd=d; best=value; } }
   return best;
 }
 // altura inicial al aparecer en un punto: la superficie más alta (si está sobre un puente, arriba)
@@ -117,9 +161,15 @@ const CROSSINGS=[];
     const p=end?r.pts[r.pts.length-1]:r.pts[0], s=end?r.len:0, z=end?r.zs[r.zs.length-1]:r.zs[0];
     for(const sg of segsAt(p[0],p[1])){ if(sg.r===r) continue;
       if(segDist(p[0],p[1],sg.x1,sg.y1,sg.x2,sg.y2)>sg.w/2+8 || Math.abs(segZ(sg,p[0],p[1])-z)>2) continue;
-      const t=segT(sg,p[0],p[1]); add({r},sg,sg.x1+(sg.x2-sg.x1)*t,sg.y1+(sg.y2-sg.y1)*t,s,sg.s0+Math.hypot(sg.x2-sg.x1,sg.y2-sg.y1)*t);
+      const t=segT(sg,p[0],p[1]), x=sg.x1+(sg.x2-sg.x1)*t, y=sg.y1+(sg.y2-sg.y1)*t;
+      // Una rampa entra por el borde: conserva el nodo en su extremo físico,
+      // aunque el eje de la autopista pase unas decenas de unidades más adentro.
+      add({r},sg,r.kind==='ramp'?p[0]:x,r.kind==='ramp'?p[1]:y,s,sg.s0+Math.hypot(sg.x2-sg.x1,sg.y2-sg.y1)*t);
       r.ends[end]=true; break; }
   }
+  // Las carreteras cerradas (como la ruta costera) conectan sus dos extremos
+  // consigo mismas; no deben aparecer como fondos de saco.
+  for(const r of ROADS) if(dist(r.pts[0][0],r.pts[0][1],r.pts[r.pts.length-1][0],r.pts[r.pts.length-1][1])<Math.max(4,r.w*0.1)) r.ends[0]=r.ends[1]=true;
 })();
 
 // --- Lugares de la historia (se colocan junto a la calle más cercana) ---
@@ -300,10 +350,12 @@ function resolve(o,r){ // empuja círculo fuera de los sólidos; devuelve true s
     }
   }
   // desniveles (pretiles, agua): volver a la última posición válida
-  const nz=standZ(o.x,o.y,o.z===undefined?spawnZ(o.x,o.y):o.z);
-  if(nz===null){ if(o._px!==undefined){ o.x=o._px; o.y=o._py; } hit=true; } else o.z=nz;
+  const nz=o===G.player&&o.z!==undefined
+    ? walkStandZ(o._px===undefined?o.x:o._px,o._py===undefined?o.y:o._py,o.x,o.y,o.z)
+    : standZ(o.x,o.y,o.z===undefined?spawnZ(o.x,o.y):o.z);
+  if(nz===null){ if(o._px!==undefined){ o.x=o._px; o.y=o._py; if(o._pz!==undefined) o.z=o._pz; } hit=true; } else o.z=nz;
   if(o.x<r||o.y<r||o.x>WW-r||o.y>WH-r){ o.x=clamp(o.x,r,WW-r); o.y=clamp(o.y,r,WH-r); hit=true; }
-  o._px=o.x; o._py=o.y;
+  o._px=o.x; o._py=o.y; o._pz=o.z;
   return hit;
 }
 

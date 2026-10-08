@@ -38,12 +38,19 @@ function update(dt){
   const car=P.inCar;
   if(car) P.z=car.z;
   if(car){
-    if(car.driver!=='ride') driveCar(car,dt,keys['w']||keys['arrowup'],keys['s']||keys['arrowdown'],(keys['a']||keys['arrowleft']?-1:0)+(keys['d']||keys['arrowright']?1:0),keys[' ']);
+    if(car.driver!=='ride'){
+      const throttle=!!(keys['w']||keys['arrowup']);
+      const brake=!!(keys['s']||keys['arrowdown']);
+      const steer=(keys['d']||keys['arrowright']?1:0)-(keys['a']||keys['arrowleft']?1:0);
+      // Al volante, W/S controlan el coche y A/D giran respecto a su orientación.
+      // A pie, en cambio, WASD conserva el movimiento global del mapa.
+      driveCar(car,dt,throttle&&!brake,brake,steer,keys[' ']);
+    }
     P.x=car.x; P.y=car.y; P.a=car.a;
     if(pressed['h']) beep(330,0.35,'sawtooth',0.05);
     if(car.dead){ P.inCar=null; }
     // atropellos
-    if(Math.abs(car.v)>90 && !onDeck(car)) for(const p of G.peds) if(!p.dead && dist(p.x,p.y,car.x,car.y)<car.r+6){ killPed(p); sfx.crash(); runOver(); }
+    if(!onDeck(car)) for(const p of G.peds) if(!p.dead && dist(p.x,p.y,car.x,car.y)<car.r+6) carHitsPed(car,p);
     if(Math.abs(car.v)>90) for(const t of G.thugs) if(t.hp>0 && dist(t.x,t.y,car.x,car.y)<car.r+8){ t.hp=0; sfx.crash(); }
     if(Math.abs(car.v)>90) for(const o of G.officers) if(o.hp>0 && dist(o.x,o.y,car.x,car.y)<car.r+8){ o.hp=0; sfx.crash(); }
   } else {
@@ -51,19 +58,15 @@ function update(dt){
     let my=(keys['s']||keys['arrowdown']?1:0)-(keys['w']||keys['arrowup']?1:0);
     const run=keys['shift']; const sp=run?190:115;
     if(mx||my){ const l=Math.hypot(mx,my), dx=mx/l*sp*dt, dy=my/l*sp*dt;
-      // solo se pasa a superficies a una altura parecida (pretiles, bordes de puente, agua): se desliza por el eje libre
-      let nz=standZ(P.x+dx,P.y,P.z); if(nz!==null){ P.x+=dx; P.z=nz; }
-      nz=standZ(P.x,P.y+dy,P.z); if(nz!==null){ P.y+=dy; P.z=nz; }
+      // Conserva el nivel vertical: al tablero se sube por la calzada de acceso,
+      // no entrando de lado desde el terreno bajo el puente.
+      let nz=walkStandZ(P.x,P.y,P.x+dx,P.y,P.z); if(nz!==null){ P.x+=dx; P.z=nz; }
+      nz=walkStandZ(P.x,P.y,P.x,P.y+dy,P.z); if(nz!==null){ P.y+=dy; P.z=nz; }
       P.walk+=dt*(run?14:9); }
     resolve(P,9);
     const wx=mouse.x/cam.z+cam.x, wy=mouse.y/cam.z+cam.y;
     P.a=Math.atan2(wy-P.y,wx-P.x);
-    P.cool-=dt;
-    if(mouse.down && P.gun && P.ammo>0 && P.cool<=0){
-      fire(P.x,P.y,P.a,'player',0.04,34); P.ammo--; P.cool=0.28;
-      G.peds.forEach(p=>{ if(!p.dead&&dist(p.x,p.y,P.x,P.y)<400) p.flee=6; });
-      if(G.wanted<1 && G.thugs.length===0 && copNear(700)) setWanted(1);
-    } else if(mouse.clicked && P.gun && P.ammo<=0) { toast('Sin munición. Cómprala en la Casa de Empeños.',2); }
+    weaponUse(dt);   // disparar, lanzar, rociar; rueda del ratón o 1-9 para cambiar de arma
   }
 
   // --- interacción (E) ---
@@ -89,17 +92,20 @@ function update(dt){
   if(P.hp<=0 && !G.dead){ G.dead='wasted'; G.deadT=3.5; if(P.inCar){P.inCar=null;} sfx.boom(); }
 }
 
-function copNear(r){ return G.cars.some(c=>c.driver==='cop'&&copSees(c.x,c.y,c.z,r)); }
+function copNear(r){ return G.cars.some(c=>!c.dead&&(c.driver==='cop'||c.patrol)&&copSees(c.x,c.y,c.z,r)); }
+// patrulla más cercana que te ve (para que pase a perseguirte)
+function witnessCop(r){ let best=null,bd=r; for(const c of G.cars){ if(c.dead||!c.patrol||c.driver!=='ai') continue; const d=dist(c.x,c.y,G.player.x,G.player.y); if(d<bd&&copSees(c.x,c.y,c.z,r)){ bd=d; best=c; } } return best; }
 
 function nearMarker(){
   const P=G.player;
-  for(const m of activeMarkers()) if(dist(m.x,m.y,P.x,P.y)<(m.key==='desert'?150:55)) return m;
+  for(const m of activeMarkers()) if(dist(m.x,m.y,P.x,P.y)<(m.key==='desert'?150:55) && Math.abs(P.z-(m.z===undefined?groundZ(m.x,m.y):m.z))<STEP_UP) return m;
   return null;
 }
 function activeMarkers(){
   const list=[], T=missionTarget();
   if(T) list.push(Object.assign({main:true},T));
   list.push(Object.assign({svc:'+',col:'#e44'},LOC.hospital), Object.assign({svc:'$',col:'#4a4'},LOC.pawn), Object.assign({svc:'⌂',col:'#ccc'},LOC.home));
+  if(!G.side) for(const S of SIDE) if(sideAvailable(S)){ const L=locOf(S.at); if(L) list.push({key:'side:'+S.id,x:L.x+(S.dx||0),y:L.y+(S.dy||0),name:S.who+': '+S.title,svc:'?',col:'#b46ad8',side:S}); }
   if(canDeal()) DEALERS.forEach((d,i)=>list.push({key:'dealer'+i,x:d.x,y:d.y,name:d.name,svc:'●',col:'#39f'}));
   if(G.mi>=missionIdx('1x06') && G.mi<missionIdx('2x02')) list.push(Object.assign({svc:'T',col:'#a33'},LOC.tuco));
   if(G.rvId) list.push(Object.assign({svc:'⚗',col:'#3cf'},DESERT));
@@ -113,8 +119,8 @@ function enterCar(c){
   const P=G.player;
   if(c.driver==='ai'||c.driver==='cop'){
     // sacar al conductor
-    G.peds.push({x:c.x+Math.cos(c.a+Math.PI/2)*30,y:c.y+Math.sin(c.a+Math.PI/2)*30,a:0,sp:70,col:c.driver==='cop'?'#124':'#888',skin:'#e6c09a',flee:8,walk:0,turnT:3});
-    if(c.driver==='cop') setWanted(Math.max(G.wanted,2));
+    G.peds.push({x:c.x+Math.cos(c.a+Math.PI/2)*30,y:c.y+Math.sin(c.a+Math.PI/2)*30,z:c.z,a:0,sp:70,col:c.driver==='cop'?'#124':'#888',skin:'#e6c09a',flee:8,walk:0,turnT:3,hp:38});
+    if(c.driver==='cop'||c.patrol) setWanted(Math.max(G.wanted,2));
     else if(copNear(700)||Math.random()<0.25) setWanted(Math.max(G.wanted,1));
     toast('Coche robado',2);
   } else if(c.parked && !c.owned && Math.random()<0.4){ toast('¡Alarma del coche!',2); beep(900,0.6,'square',0.03); if(copNear(800)) setWanted(Math.max(G.wanted,1)); }

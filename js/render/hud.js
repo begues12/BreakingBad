@@ -27,15 +27,17 @@ function drawHUD(t){
   const hh=Math.floor(G.clock/60), mm=Math.floor(G.clock%60);
   txt(String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0'),rx,82,22,'#eee','right');
   for(let i=0;i<5;i++){
-    const on=i<G.wanted, blink=on&&G.evadeT>2&&Math.floor(t*4)%2;
+    const on=i<G.wanted, blink=on&&G.policeState&&G.policeState!=='visto'&&Math.floor(t*(G.policeState==='buscando'?6:3))%2;
     txt('★',rx-i*30,120,28,on?(blink?'#888':'#fff'):'rgba(255,255,255,.18)','right');
   }
+  if(G.wanted>0&&G.policeState){ const st={visto:['TE ESTÁN VIENDO','#ff5a5a'],cerca:['ESTÁS EN LA ZONA DE BÚSQUEDA','#ffb347'],buscando:['TE BUSCAN · NO TE VEN','#8fd0ff']}[G.policeState];
+    txt(st[0],rx,128,12,st[1],'right','700 '); }
   // salud / chaleco
   const bx=rx-200;
-  ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(bx,132,200,12); ctx.fillStyle='#c0392b'; ctx.fillRect(bx+2,134,196*clamp(P.hp/100,0,1),8);
+  ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(bx,138,200,12); ctx.fillStyle='#c0392b'; ctx.fillRect(bx+2,140,196*clamp(P.hp/100,0,1),8);
   if(P.armor>0){ ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(bx,148,200,8); ctx.fillStyle='#4aa3df'; ctx.fillRect(bx+2,150,196*P.armor/100,4); }
   let yy=180;
-  if(P.gun){ txt('🔫 Ruger  '+P.ammo,rx,yy,18,'#ddd','right'); yy+=26; }
+  yy=drawWeaponHud(rx,yy);
   if(G.product>0){ txt('Producto: '+G.product+' lb  ('+(G.purity*100).toFixed(1)+'%)',rx,yy,18,'#5ad1ff','right'); yy+=26; }
   if(G.mi>=2){
     txt('Calor DEA',rx-110,yy+4,14,'#ccc','right');
@@ -64,6 +66,10 @@ function drawHUD(t){
   ctx.drawImage(mini,0,0);
   if(G.gps){ ctx.strokeStyle='#ff4fa0'; ctx.lineWidth=2.2/zoom*2; ctx.lineJoin='round'; ctx.stroke(gpsPath(S2)); }
   for(const m of activeMarkers()){ ctx.fillStyle=m.main?'#ffd23a':m.col; ctx.beginPath(); ctx.arc(m.x*S2,m.y*S2,m.main?5/zoom*2:3/zoom*2,0,7); ctx.fill(); }
+  if(G.search&&G.wanted>0){ const on=Math.floor(t*3)%2; ctx.fillStyle=G.policeState==='visto'?(on?'rgba(255,50,50,.28)':'rgba(60,100,255,.28)'):'rgba(255,60,60,.16)';
+    ctx.strokeStyle=on?'rgba(255,80,80,.9)':'rgba(80,120,255,.9)'; ctx.lineWidth=1.5/zoom; ctx.beginPath(); ctx.arc(G.search.x*S2,G.search.y*S2,G.search.r*S2,0,7); ctx.fill(); ctx.stroke(); }
+  // patrullas siempre visibles (aunque no te busquen): flecha azul con su cono de visión
+  for(const c of G.cars) if(c.patrol&&c.driver==='ai'&&!c.dead) drawCopBlip(c,S2,zoom,t);
   for(const c of G.cars){ if(c.driver==='cop'){ ctx.fillStyle=Math.floor(t*6)%2?'#f33':'#36f'; ctx.fillRect(c.x*S2-2,c.y*S2-2,4,4); } else if(c.owned&&c!==P.inCar){ ctx.fillStyle='#9f9'; ctx.fillRect(c.x*S2-1.5,c.y*S2-1.5,3,3); } }
   for(const th of G.thugs){ ctx.fillStyle='#f00'; ctx.fillRect(th.x*S2-1.5,th.y*S2-1.5,3,3); }
   for(const o of G.officers){ ctx.fillStyle='#4af'; ctx.fillRect(o.x*S2-1.5,o.y*S2-1.5,3,3); }
@@ -134,3 +140,10 @@ function drawDialog(t){
 }
 function lighten(c){ return c; }
 
+
+function drawCopBlip(c,S,zoom,t){
+  const x=c.x*S, y=c.y*S, u=1/zoom;
+  ctx.fillStyle='rgba(90,140,255,.18)'; ctx.beginPath(); ctx.moveTo(x,y); ctx.arc(x,y,650*S,c.a-0.5,c.a+0.5); ctx.closePath(); ctx.fill();
+  ctx.save(); ctx.translate(x,y); ctx.rotate(c.a); ctx.scale(u*2,u*2);
+  ctx.fillStyle='#3a6bff'; ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(5,0); ctx.lineTo(-4,-3.5); ctx.lineTo(-2,0); ctx.lineTo(-4,3.5); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+}

@@ -11,6 +11,7 @@ function tentsOpen(){ return G.mi>missionIdx('5x03'); }        // casas fumigada
 function intro(){ startMission(0); }
 
 function interact(key){
+  if(key&&key.startsWith('side:')){ startSide(key.slice(5)); return true; }
   const P=G.player;
   // lugares con interior: se entra andando y lo que toque de la misión ocurre dentro
   if(INTERIORS[key] && !G.inside && !P.inCar && enterInterior(key)){ missionInteract(key); return true; }

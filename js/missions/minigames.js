@@ -1,18 +1,18 @@
 "use strict";
 // ======================= UN MINIJUEGO POR CAPÍTULO =======================
-// [código, posición (se inserta antes del paso con ese índice), juego, lugar, título, opciones, diálogo al ganar]
+// [código, posición (índice, o 'after:tipo@lugar' / 'before:tipo@lugar'), juego, lugar, título, opciones, diálogo al ganar]
 // Sin lugar (null) el minijuego arranca solo al llegar a ese paso.
 const MINIGAME_TABLE=[
-  ['1x01',9,'mash','desert','Sujeta la puerta de la autocaravana',{time:7},[['N','El gas hace su efecto. Dentro, silencio.']]],
+  ['1x01','after:talk@desert','mash','desert','Sujeta la puerta de la autocaravana',{time:7},[['N','El gas hace su efecto. Dentro, silencio.']]],
   ['1x02',4,'scrub','jesse','Limpia el ácido del baño de Jesse',{spots:16,time:22}],
   ['1x03',1,'timing','jesse','Krazy-8 esconde un trozo de plato: reacciona',{hits:4,speed:1.6},[['W','Te falta un trozo del plato, Domingo.']]],
   ['1x04',3,'wires',null,'Cortocircuita la batería del BMW con el limpiaparabrisas',{n:4,time:18}],
   ['1x05',2,'sequence','jesse','Enséñale a Jesse el procedimiento correcto',{len:3,rounds:3},[['J','Vale, vale... lo pillo. Más o menos.']]],
   ['1x06',3,'timing','tuco','Lanza el fulminato en el momento justo',{hits:3,speed:1.8,zone:0.12}],
-  ['1x07',1,'stealth','almacen','Entra en el almacén sin que te vea el vigilante',{guards:3,items:2}],
+  ['1x07','after:cine','stealth','almacen','Entra en el almacén sin que te vea el vigilante',{guards:3,items:2}],
   ['2x01',1,'count','home','Calcula lo que necesita tu familia: 737.000 $',{rounds:3,unit:1000},[['W','Setecientos treinta y siete mil. Ni un dólar menos.']]],
   ['2x02',1,'timing','hector','Mete la ricina en el burrito sin que Héctor lo vea',{hits:3,speed:1.5}],
-  ['2x03',1,'balance','hospital','Mantén la calma delante de los médicos',{time:9,drift:0.7}],
+  ['2x03','after:ride','balance','hospital','Mantén la calma delante de los médicos',{time:9,drift:0.7}],
   ['2x04',2,'count','jesse','Ayuda a Jesse a reunir el dinero de la fianza',{rounds:2}],
   ['2x05',1,'sequence','jesse','Organiza las rutas de los camellos',{len:4,rounds:2}],
   ['2x06',0,'stealth','spooge','Entra en la casa de Spooge',{guards:2,items:1,speed:0.4}],
@@ -68,5 +68,8 @@ const MINIGAME_TABLE=[
 ];
 for(const [code,pos,game,at,title,opts,lines] of MINIGAME_TABLE){
   const M=MISSIONS.find(m=>m.code===code); if(!M) continue;
-  M.steps.splice(Math.min(pos,M.steps.length),0,{type:'game',game,at:at||undefined,obj:title,title,opts,lines:lines||[]});
+  // pos: número de paso, o 'after:tipo@lugar' / 'before:tipo@lugar' (se ancla al paso de la historia, no a su número)
+  let i=pos; if(typeof pos==='string'){ const [mode,sel]=pos.split(':'), [ty,lo]=sel.split('@');
+    const k=M.steps.findIndex(s=>s.type===ty&&(!lo||s.at===lo)); i=k<0?M.steps.length:(mode==='after'?k+1:k); }
+  M.steps.splice(Math.min(i,M.steps.length),0,{type:'game',game,at:at||undefined,obj:title,title,opts,lines:lines||[]});
 }

@@ -1,12 +1,12 @@
 "use strict";
 // ======================= ESTADO =======================
 const CARTYPES = {
-  sedan:{w:44,h:22,r:20,max:520,acc:380,turn:2.6,hp:100,mass:1},
-  aztek:{w:46,h:24,r:21,max:480,acc:350,turn:2.5,hp:120,mass:1.25,color:'#8a9a5b'},
-  rv:   {w:70,h:30,r:28,max:340,acc:210,turn:1.75,hp:220,mass:2.6,gripMul:0.85,color:'#e8e2cf'},
-  cop:  {w:46,h:22,r:20,max:560,acc:430,turn:2.8,hp:140,mass:1.2,gripMul:1.1,color:'#f2f2f2'},
-  ambulance:{w:62,h:28,r:26,max:520,acc:380,turn:2.3,hp:300,mass:2.2,color:'#f4f4f2'},
-  dea:  {w:48,h:24,r:21,max:560,acc:430,turn:2.8,hp:160,mass:1.6,gripMul:1.05,color:'#1d1f24'},
+  sedan:{w:44,h:22,r:20,max:520,acc:380,turn:2.6,hp:320,mass:1},
+  aztek:{w:46,h:24,r:21,max:480,acc:350,turn:2.5,hp:380,mass:1.25,color:'#8a9a5b'},
+  rv:   {w:70,h:30,r:28,max:340,acc:210,turn:1.75,hp:600,mass:2.6,gripMul:0.85,color:'#e8e2cf'},
+  cop:  {w:46,h:22,r:20,max:560,acc:430,turn:2.8,hp:420,mass:1.2,gripMul:1.1,color:'#f2f2f2'},
+  ambulance:{w:62,h:28,r:26,max:520,acc:380,turn:2.3,hp:700,mass:2.2,color:'#f4f4f2'},
+  dea:  {w:48,h:24,r:21,max:560,acc:430,turn:2.8,hp:480,mass:1.6,gripMul:1.05,color:'#1d1f24'},
 };
 const CARCOLORS=['#a33','#335','#ddd','#222','#6a6a6a','#2a5a8a','#8a6a2a','#5a2a5a','#c8b070','#3a6a3a','#b55a2a'];
 
@@ -56,7 +56,9 @@ function spawnTraffic(anywhere){
     const nr=roadPointNear(anywhere?250:950,anywhere?1600:1500,r=>r.drive&&r.kind!=='dirt'); if(!nr) continue;
     const c={road:nr.r.idx,s:nr.s,dir:Math.random()<.5?1:-1}; const p=trafficPos(c);
     if(G.cars.some(o=>dist(o.x,o.y,p.x,p.y)<90)) continue;
-    return spawnCar('sedan',p.x,p.y,p.a,{driver:'ai',road:c.road,s:c.s,dir:c.dir,v:SPEED_OF[nr.r.kind]*0.7,z:p.z});
+    // ~1 de cada 7 coches es una patrulla de la APD que circula con el tráfico (máx. 4 a la vez)
+    const patrol=G.cars.filter(o=>o.patrol&&!o.dead).length<4&&Math.random()<0.15;
+    return spawnCar(patrol?'cop':'sedan',p.x,p.y,p.a,{driver:'ai',patrol,road:c.road,s:c.s,dir:c.dir,v:SPEED_OF[nr.r.kind]*0.7,z:p.z});
   }
 }
 function spawnParked(){
@@ -74,6 +76,7 @@ function sidewalkPos(r,sv,side){ const p=pointAt(r,sv), n=p.a+Math.PI/2; const o
 function attachPed(p){ // engancha un peatón a la acera más cercana
   const nr=nearestRoad(p.x,p.y,PED_ROAD); if(!nr) return;
   const n=nr.a+Math.PI/2, side=((p.x-nr.x)*Math.cos(n)+(p.y-nr.y)*Math.sin(n))>=0?1:-1;
+  p.z=nr.z;
   p.road=nr.r.idx; p.s=nr.s; p.side=side; p.dir=Math.random()<.5?1:-1; p.lastX=-1;
   const t=sidewalkPos(nr.r,p.s,side); p.mode='go'; p.tx=t.x; p.ty=t.y;
 }
@@ -83,17 +86,20 @@ function spawnPed(anywhere){
     const side=Math.random()<.5?1:-1, pos=sidewalkPos(nr.r,nr.s,side);
     if(inWater(pos.x,pos.y)||hitSolid(pos.x,pos.y,6)) continue;
     if(Math.random()>density(pos.x,pos.y)*1.15+0.02) continue;   // sin casas alrededor casi nadie pasea
-    G.peds.push({x:pos.x,y:pos.y,a:pos.a,road:nr.r.idx,s:nr.s,side,dir:Math.random()<.5?1:-1,mode:'walk',lastX:-1,
+    G.peds.push({x:pos.x,y:pos.y,z:nr.z,a:pos.a,road:nr.r.idx,s:nr.s,side,dir:Math.random()<.5?1:-1,mode:'walk',lastX:-1,hp:38,
       sp:rand(38,58),col:PEDCOL[(Math.random()*PEDCOL.length)|0],skin:['#e6c09a','#c69468','#8d5a3b','#f1d3b5'][(Math.random()*4)|0],
-      flee:0,walk:0,turnT:rand(2,6)});
+      flee:0,walk:0,turnT:rand(2,6),dog:Math.random()<0.08?['#8a6a4a','#2a2a2a','#d8c8a8','#b07a3a'][(Math.random()*4)|0]:null});
     return;
   }
 }
 function updatePed(p,dt){
   const P=G.player;
+  if(pedLife(p,dt)) return;
+  const slow=p.limp>0?0.5:1;
   if(p.flee>0){
-    p.flee-=dt; const a=Math.atan2(p.y-P.y,p.x-P.x); p.a=a+Math.sin(p.walk)*0.2;
-    p.x+=Math.cos(p.a)*130*dt; p.y+=Math.sin(p.a)*130*dt; p.walk+=dt*14;
+    p.flee-=dt; const a=p.blastPush>0?p.blastA:Math.atan2(p.y-P.y,p.x-P.x); p.a=a+Math.sin(p.walk)*0.2;
+    const speed=p.blastPush>0?p.blastPush:130;
+    p.x+=Math.cos(p.a)*speed*slow*dt; p.y+=Math.sin(p.a)*speed*slow*dt; p.blastPush=Math.max(0,(p.blastPush||0)-260*dt); p.walk+=dt*14;
     resolve(p,7);
     if(p.flee<=0) attachPed(p);
     return;
@@ -129,6 +135,6 @@ function updatePed(p,dt){
   }
   if(p.s<=8){ p.s=8; p.dir=1; p.lastX=-1; } else if(p.s>=r.len-8){ p.s=r.len-8; p.dir=-1; p.lastX=-1; }
   const t=sidewalkPos(r,p.s,p.side);
-  p.a=Math.atan2(t.y-p.y,t.x-p.x)||p.a; p.x=t.x; p.y=t.y; p.walk+=dt*8;
+  p.a=Math.atan2(t.y-p.y,t.x-p.x)||p.a; p.x=t.x; p.y=t.y; p.z=pointAt(r,p.s).z; p.walk+=dt*8;
 }
 
