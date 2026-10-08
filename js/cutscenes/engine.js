@@ -119,50 +119,108 @@ function drawFigure(c,W,H,t,k,cam){
   if(c.act==='fall'&&k>0.45) pose='lie';
   if(c.act==='shake') x+=Math.sin(t*40)*3;
   const under=c.outfit==='underwear';          // camiseta de tirantes y calzoncillos (apertura de 1x01)
-  const cloth=under?'#f2efe6':c.body||L.cloth||'#444', pants=under?L.skin:c.pants||(L.female?shade(cloth,-30):'#2e2d33'), skin=L.skin, shoe=under?'#3a2e24':'#1e1a18';
+  const cloth=under?'#f2efe6':c.body||L.cloth||'#444', pants=under?L.skin:c.pants||L.pants||(L.female?'#3e4c68':(L.outfit==='tee'||L.outfit==='tank'?'#3a4258':'#2e2d33')), skin=L.skin, shoe=under?'#3a2e24':'#1e1a18';
   const over=under?{outfit:'tank',cloth:'#f2efe6',shirt:null,tie:null}:c.body?{outfit:'tee',cloth:c.body,shirt:null,tie:null}:null;
   const walk=pose==='walk'?Math.sin(t*8):0, sit=pose==='sit', kneel=pose==='kneel';
-  ctx.save(); ctx.translate(x,y); ctx.scale(u,u);
+
+  if(pose==='lie'){ drawLying(c,L,x,y,u,face,cloth,pants,skin,shoe,t); return; }  ctx.save(); ctx.translate(x,y); ctx.scale(u,u);
+  // sombra en el suelo (antes de girar: tumbado la sombra es alargada, no un óvalo de pie)
+  ctx.fillStyle='rgba(0,0,0,.22)'; ctx.beginPath(); if(pose==='lie') ctx.ellipse(-face*110,2,140,14,0,0,7); else ctx.ellipse(0,2,62,12,0,0,7); ctx.fill();
   if(pose==='lie'){ ctx.rotate(-Math.PI/2*face); ctx.translate(0,-30); }
-  // sombra en el suelo
-  ctx.fillStyle='rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(0,2,62,12,0,0,7); ctx.fill();
   const lift=sit?62:kneel?52:0;             // sentado/arrodillado: el cuerpo baja
   // silla
   if(sit&&!c.noChair){ ctx.fillStyle='#5a3a22'; ctx.fillRect(-46,-150,92,10); ctx.fillRect(-46,-150,8,150); ctx.fillRect(38,-150,8,150);
     ctx.fillStyle='#6e4a2c'; ctx.fillRect(-52,-84,104,12); ctx.fillStyle='#4a2e1a'; ctx.fillRect(-48,-72,8,72); ctx.fillRect(40,-72,8,72); }
-  // piernas
-  ctx.lineCap='round'; ctx.strokeStyle=pants; ctx.lineWidth=24;
-  const hipY=-110+lift;
-  if(sit){ for(const sx of [-14,14]){ ctx.beginPath(); ctx.moveTo(sx,hipY); ctx.lineTo(sx*1.1,hipY+14); ctx.lineTo(sx*1.15,-10); ctx.stroke(); } }
-  else if(kneel){ for(const sx of [-14,14]){ ctx.beginPath(); ctx.moveTo(sx,hipY); ctx.lineTo(sx*1.2,-12); ctx.stroke(); } }
-  else { for(const [sx,ph] of [[-14,1],[14,-1]]){ const sw=walk*ph*16; ctx.beginPath(); ctx.moveTo(sx,hipY); ctx.lineTo(sx+sw*0.5,-58); ctx.lineTo(sx+sw,-10); ctx.stroke(); } }
-  ctx.fillStyle=shoe; for(const [sx,ph] of [[-14,1],[14,-1]]){ const sw=sit||kneel?0:walk*ph*16; ctx.beginPath(); ctx.ellipse(sx*(sit?1.15:1)+sw+face*5,-5,17,8,0,0,7); ctx.fill(); }
-  // torso (de los hombros a la cadera)
-  const ty=-196+lift;
-  const tg=ctx.createLinearGradient(-48,0,48,0); tg.addColorStop(0,shade(cloth,-30)); tg.addColorStop(0.45,cloth); tg.addColorStop(1,shade(cloth,-45));
-  ctx.fillStyle=tg; ctx.beginPath(); ctx.moveTo(-50,ty+20); ctx.lineTo(50,ty+20); ctx.lineTo(42,hipY+6); ctx.lineTo(-42,hipY+6); ctx.closePath(); ctx.fill();
-  if(L.shirt&&!L.female&&!over){ ctx.fillStyle=L.shirt; ctx.beginPath(); ctx.moveTo(-13,ty+20); ctx.lineTo(13,ty+20); ctx.lineTo(9,hipY+4); ctx.lineTo(-9,hipY+4); ctx.closePath(); ctx.fill(); }
-  if(L.tie&&!over){ ctx.fillStyle=L.tie; ctx.beginPath(); ctx.moveTo(-4,ty+22); ctx.lineTo(4,ty+22); ctx.lineTo(6,ty+70); ctx.lineTo(0,ty+78); ctx.lineTo(-6,ty+70); ctx.closePath(); ctx.fill(); }
+  // ---------- cuerpo: siluetas con volumen (muslo/pantorrilla, pecho/cintura, brazo/antebrazo, manos) ----------
+  // Ligeras asimetrías por personaje (semilla) para que no parezca un icono.
+  const seed=[...(c.id||'X')].reduce((a,ch)=>a+ch.charCodeAt(0),0), asym=((seed%7)-3)*0.6;
+  // miembro afilado: de (x1,y1) ancho w1 a (x2,y2) ancho w2, con extremos redondeados
+  const limb=(x1,y1,x2,y2,w1,w2,col)=>{ const a=Math.atan2(y2-y1,x2-x1), nx=-Math.sin(a), ny=Math.cos(a);
+    ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(x1+nx*w1/2,y1+ny*w1/2); ctx.lineTo(x2+nx*w2/2,y2+ny*w2/2); ctx.lineTo(x2-nx*w2/2,y2-ny*w2/2); ctx.lineTo(x1-nx*w1/2,y1-ny*w1/2); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.arc(x1,y1,w1/2,0,7); ctx.arc(x2,y2,w2/2,0,7); ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.10)'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x1+nx*w1*0.28,y1+ny*w1*0.28); ctx.lineTo(x2+nx*w2*0.28,y2+ny*w2*0.28); ctx.stroke(); };
+  const hipY=-112+lift, sy=-196+lift+26;                 // cadera y línea de hombros
+  // ----- piernas (muslo ancho → rodilla → pantorrilla) y zapatos -----
+  const legCol=pants, legDk=shade(pants,-18);
+  const leg=(sx,ph,col)=>{ let kx,ky,fx,fy;
+    if(sit){ kx=sx*1.15+face*42; ky=hipY+8; fx=kx+face*2; fy=-8; }
+    else if(kneel){ kx=sx*1.1+face*8; ky=-22; fx=kx-face*38; fy=-10; }
+    else { const sw=walk*ph*18; kx=sx+sw*0.55+ph*1.5; ky=-60; fx=sx+sw+ph*2; fy=-10; }
+    limb(sx,hipY,kx,ky,30,22,col); limb(kx,ky,fx,fy,22,17,col);
+    ctx.strokeStyle='rgba(0,0,0,.22)'; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(sx,hipY+6); ctx.lineTo(kx,ky); ctx.lineTo(fx,fy-6); ctx.stroke();
+    ctx.fillStyle=shoe; ctx.beginPath(); ctx.ellipse(fx+face*7,fy+3,15,8,0,0,7); ctx.fill(); ctx.fillStyle='rgba(255,255,255,.12)'; ctx.fillRect(fx+face*2-6,fy-2,10,2); };
+  leg(-13,1,legDk); leg(13+asym,-1,legCol);
+  // ----- torso: pecho ancho, cintura estrecha, cadera algo más ancha -----
+  const tg=ctx.createLinearGradient(-52,0,52,0); tg.addColorStop(0,shade(cloth,-30)); tg.addColorStop(0.45,cloth); tg.addColorStop(1,shade(cloth,-45));
+  const waistY=hipY-26;
+  ctx.fillStyle=tg; ctx.beginPath(); ctx.moveTo(-14,sy-6);
+  ctx.quadraticCurveTo(-44,sy-4+asym,-50,sy+16); ctx.quadraticCurveTo(-46,sy+40,-40,waistY); ctx.quadraticCurveTo(-46,hipY-6,-44,hipY+8);
+  ctx.lineTo(44,hipY+8); ctx.quadraticCurveTo(46,hipY-6,40,waistY); ctx.quadraticCurveTo(46,sy+40,50,sy+16); ctx.quadraticCurveTo(44,sy-4-asym,14,sy-6); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,.25)'; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.strokeStyle='rgba(0,0,0,.14)'; ctx.lineWidth=1.3; for(const sd of [-1,1]){ ctx.beginPath(); ctx.moveTo(sd*30,waistY-8); ctx.quadraticCurveTo(sd*24,waistY+2,sd*32,hipY-2); ctx.stroke(); }
+  ctx.beginPath(); ctx.moveTo(-36,sy+30); ctx.quadraticCurveTo(-28,sy+38,-20,sy+34); ctx.stroke();
+  // cuello visible
+  ctx.fillStyle=shade(skin,-14); ctx.fillRect(-9,sy-20,18,18);
+  const opn=!over&&!L.female&&L.shirt&&L.outfit!=='tee'&&L.outfit!=='tank';
+  if(opn){ // camisa en V (con cuadros), cuello de camisa, corbata y solapas
+    ctx.save(); ctx.beginPath(); ctx.moveTo(-15,sy-6); ctx.lineTo(15,sy-6); ctx.lineTo(9,waistY+10); ctx.lineTo(-9,waistY+10); ctx.closePath(); ctx.clip();
+    ctx.fillStyle=L.shirt; ctx.fillRect(-16,sy-8,32,waistY-sy+20);
+    if(L.check){ ctx.fillStyle=L.check; ctx.globalAlpha=.45; for(let yy=sy;yy<waistY+10;yy+=8) ctx.fillRect(-16,yy,32,3); for(let xx=-14;xx<16;xx+=8) ctx.fillRect(xx,sy-6,3,waistY-sy+16); ctx.globalAlpha=1; }
+    ctx.restore();
+    ctx.fillStyle=L.shirt; for(const sd of [-1,1]){ ctx.beginPath(); ctx.moveTo(0,sy-2); ctx.lineTo(sd*12,sy-10); ctx.lineTo(sd*14,sy+2); ctx.closePath(); ctx.fill(); }
+    if(L.tie){ ctx.fillStyle=L.tie; ctx.beginPath(); ctx.moveTo(-4,sy-2); ctx.lineTo(4,sy-2); ctx.lineTo(7,sy+50); ctx.lineTo(0,sy+58); ctx.lineTo(-7,sy+50); ctx.closePath(); ctx.fill(); }
+    ctx.fillStyle=shade(cloth,18); for(const sd of [-1,1]){ ctx.beginPath(); ctx.moveTo(sd*14,sy-6); ctx.lineTo(sd*26,sy+2+(sd>0?asym:0)); ctx.lineTo(sd*12,sy+50); ctx.lineTo(sd*9,sy+46); ctx.closePath(); ctx.fill(); }
+    ctx.strokeStyle='rgba(0,0,0,.18)'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(10,sy+50); ctx.lineTo(8,hipY+6); ctx.stroke();   // borde de la chaqueta
+  } else { ctx.fillStyle=shade(cloth,-25); ctx.beginPath(); ctx.ellipse(0,sy-4,13,6,0,0,Math.PI); ctx.fill(); }
+  if(L.outfit==='chainshirt'&&!over){ ctx.save(); ctx.beginPath(); ctx.rect(-56,sy-6,112,hipY-sy+12); ctx.clip(); chainPattern(-56,sy-6,112,hipY-sy+12,'rgba(28,26,24,.85)'); ctx.restore();
+    ctx.fillStyle=skin; ctx.beginPath(); ctx.moveTo(-9,sy-6); ctx.lineTo(9,sy-6); ctx.lineTo(0,sy+18); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#e0dcd0'; ctx.beginPath(); ctx.ellipse(0,sy+14,3.5,5,0,0,7); ctx.fill(); }
+  if(L.outfit==='vest'&&!over){ ctx.fillStyle=L.shirt; ctx.fillRect(-15,sy-4,30,hipY-sy); }
   if(under){ ctx.fillStyle='#ece8de'; ctx.beginPath(); ctx.moveTo(-34,hipY-6); ctx.lineTo(34,hipY-6); ctx.lineTo(30,hipY+12); ctx.lineTo(6,hipY+26); ctx.lineTo(-6,hipY+26); ctx.lineTo(-30,hipY+12); ctx.closePath(); ctx.fill(); ctx.fillStyle='#d8d2c4'; ctx.fillRect(-34,hipY-6,68,5); }
-  else { ctx.fillStyle='#2a2420'; ctx.fillRect(-42,hipY-6,84,8); }   // cinturón
-  // brazos (hombro → codo → mano)
-  const arm=(sx,ex,ey,hx,hy)=>{ ctx.strokeStyle=under?skin:shade(cloth,-12); ctx.lineWidth=20; ctx.beginPath(); ctx.moveTo(sx,ty+30); ctx.lineTo(ex,ey); ctx.lineTo(hx,hy); ctx.stroke();
-    ctx.fillStyle=skin; ctx.beginPath(); ctx.arc(hx,hy,9,0,7); ctx.fill(); };
+  else if(!L.female){ ctx.fillStyle='#2a2420'; ctx.beginPath(); ctx.moveTo(-42,hipY-4); ctx.lineTo(42,hipY-4); ctx.lineTo(42,hipY+1); ctx.lineTo(-42,hipY+1); ctx.fill(); ctx.fillStyle='#b8a060'; ctx.fillRect(-4,hipY-4,8,5); }   // cinturón fino con hebilla
+  // ----- brazos: hombro integrado → brazo → codo → antebrazo → mano con pulgar -----
+  const sleeve=under?skin:shade(cloth,-10), sleeveDk=under?shade(skin,-15):shade(cloth,-28);
+  const hand=(hx,hy,ang)=>{ ctx.save(); ctx.translate(hx,hy); ctx.rotate(ang); ctx.fillStyle=skin; ctx.beginPath(); ctx.ellipse(0,5,7,9,0,0,7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-face*6,0,3,6,-face*0.6,0,7); ctx.fill(); ctx.fillStyle=shade(skin,-25); ctx.fillRect(-3,10,6,1.5); ctx.restore(); };
+  const arm=(side,ex,ey,hx,hy,col)=>{ const shx=side*42, shy=sy+12; limb(shx,shy,ex,ey,24,18,col); limb(ex,ey,hx,hy,18,13,col);
+    ctx.fillStyle=shade(L.shirt||cloth,0); if(!under&&L.shirt){ ctx.beginPath(); ctx.arc(hx,hy-2,6.5,0,7); ctx.fill(); } hand(hx,hy+2,Math.atan2(hy-ey,hx-ex)-Math.PI/2); };
   const aw=walk*12;
-  // brazo trasero
-  arm(-46*face,-56*face,ty+80+aw,-52*face+aw,ty+130);
-  if(pose==='shoot'){ arm(46*face,80*face,ty+48,118*face,ty+44); ctx.fillStyle='#151515'; ctx.fillRect(face>0?112:-150,ty+30,38,12); ctx.fillRect(face>0?114:-126,ty+36,12,20); }
-  else if(pose==='raise'){ arm(46*face,64*face,ty-10,58*face,ty-62); }
-  else if(pose==='cower'){ arm(46*face,52*face,ty+50,18*face,ty+6); }
-  else if(sit){ arm(46*face,54*face,ty+76,30*face,hipY+6); }
-  else arm(46*face,56*face,ty+80-aw,52*face-aw,ty+130);
+  arm(-face, -50*face, sy+60+aw, -46*face+aw*0.8, sy+112, sleeveDk);               // brazo de atrás
+  if(pose==='shoot'){ arm(face,74*face,sy+28,112*face,sy+24,sleeve); ctx.fillStyle='#151515'; ctx.fillRect(face>0?104:-142,sy+10,38,12); ctx.fillRect(face>0?106:-118,sy+16,12,20); }
+  else if(pose==='raise'){ arm(face,64*face,sy-26,56*face,sy-78,sleeve); }
+  else if(pose==='cower'){ arm(face,54*face,sy+34,20*face,sy-6,sleeve); }
+  else if(sit){ arm(face,52*face,sy+62,30*face,hipY+2,sleeve); }
+  else arm(face,52*face,sy+60-aw,44*face-aw*0.8+asym,sy+114+asym,sleeve);
   ctx.restore();
   // cabeza y hombros: el retrato detallado
-  const hx=x+(pose==='lie'?-face*H*0.0016*sc*150:0), hy=y+(pose==='lie'?-30*u:(-196+lift-2)*u)+(pose==='laugh'?Math.sin(t*16)*2:0);
+  // tumbado: la cabeza va en el extremo del cuerpo girado (mismo cálculo que el giro del cuerpo)
+  const hx=x+(pose==='lie'?-face*228*u:0), hy=y+(pose==='lie'?-14*u:(-196+lift-12)*u)+(pose==='laugh'?Math.sin(t*16)*2:0);
   PORTRAIT_OVERRIDE=over; PORTRAIT_BARE=true; PORTRAIT_HAT=c.id==='W'?(c.hat===false?false:heisLook()&&HAT_BG.has(G.cine&&cineShot()?cineShot().bg:'desert')):null;
-  if(pose==='lie'){ ctx.save(); ctx.translate(hx,y-24*u); ctx.rotate(-Math.PI/2*face); drawPortrait(c.id,0,0,50*u,false,t); ctx.restore(); }
-  else drawPortrait(c.id,hx,hy+ (pose==='cower'?10*u:0),50*u,false,t);
+  if(pose==='lie'){ ctx.save(); ctx.translate(hx,hy); ctx.rotate(-Math.PI/2*face); drawPortrait(c.id,0,0,50*u,false,t); ctx.restore(); }
+  else { const r=50*u, k=r/50, Lh=(c.id==='W'?walterLook():LOOK[c.id])||LOOK.X, hyy=hy+(pose==='cower'?10*u:0);
+    ctx.save(); ctx.translate(hx,hyy); ctx.rotate(((([...(c.id||'X')].reduce((a,ch)=>a+ch.charCodeAt(0),0))%5)-2)*0.012); ctx.beginPath(); ctx.ellipse(0,-8*k,(Lh.hw+9)*k,(Lh.hh+18)*k,0,0,7); ctx.rect(-9*k,(Lh.hh-8)*k,18*k,22*k); ctx.clip();
+    drawPortrait(c.id,0,0,r,false,t); ctx.restore(); }
   PORTRAIT_BARE=false; PORTRAIT_HAT=null; PORTRAIT_OVERRIDE=null;
+}
+
+// figura tumbada en el suelo (vista lateral): cuerpo plano, brazos pegados, solo la cabeza del retrato
+function drawLying(c,L,x,y,u,face,cloth,pants,skin,shoe,t){
+  ctx.save(); ctx.translate(x,y); ctx.scale(u*face,u);          // pies en x=0, cabeza hacia -x
+  ctx.fillStyle='rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(-120,2,150,12,0,0,7); ctx.fill();
+  ctx.fillStyle=shoe; ctx.beginPath(); ctx.ellipse(6,-14,10,14,0,0,7); ctx.fill();
+  ctx.fillStyle=pants; ctx.fillRect(-100,-30,104,26);                     // piernas
+  const g=ctx.createLinearGradient(0,-56,0,-2); g.addColorStop(0,shade(cloth,15)); g.addColorStop(1,shade(cloth,-30));
+  ctx.fillStyle=g; roundRect(-196,-50,100,48,10); ctx.fill();             // torso
+  if(L.shirt){ ctx.fillStyle=L.shirt; ctx.fillRect(-196,-34,40,14); }
+  ctx.strokeStyle=shade(cloth,-15); ctx.lineWidth=16; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(-180,-14); ctx.lineTo(-104,-10); ctx.stroke(); // brazo
+  ctx.fillStyle=skin; ctx.beginPath(); ctx.arc(-98,-10,8,0,7); ctx.fill();
+  ctx.restore();
+  // cabeza: el retrato recortado a la cabeza, girado y apoyado en el suelo
+  const hx=x-face*228*u, hy=y-26*u, r=50*u;
+  ctx.save(); ctx.translate(hx,hy); ctx.rotate(-Math.PI/2*face);
+  ctx.beginPath(); ctx.ellipse(0,-4*r/50,26*r/50,34*r/50,0,0,7); ctx.clip();
+  PORTRAIT_BARE=true; drawPortrait(c.id,0,0,r,false,t); PORTRAIT_BARE=false;
+  ctx.restore();
 }
 
 // ---------- fondos ----------

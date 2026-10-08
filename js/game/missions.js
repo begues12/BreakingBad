@@ -188,6 +188,10 @@ const STEP_TYPES={
       const continueTalk=()=>say(S.lines||[],()=>finishStep());
       if(S.scenes){ G.ms.finishing=true; playCutscene(S.scenes,()=>{ G.ms.finishing=false; continueTalk(); }); }
       else continueTalk(); } },
+  // alejarse de un lugar (opcional: en un vehículo concreto y con sirenas de fondo, sin policía)
+  leave:{ update(S,ms,dt){ ms.t=(ms.t||0)+dt;
+      if(S.sirens){ ms.sT=(ms.sT||0)-dt; if(ms.sT<=0){ ms.sT=1.1; const f=Math.min(1,ms.t/6)*0.025+0.01; beep(880,0.5,'sine',f); setTimeout(()=>beep(660,0.5,'sine',f),550); } }
+      const L=locOf(S.at), P=G.player; if((!S.car||inCarKind(S.car)) && dist(P.x,P.y,L.x,L.y)>(S.r||1400)) finishStep(); } },
   goto:{ update(S){ if(nearLoc(S.at,S.r) && (!S.car||inCarKind(S.car))) finishStep(); } },
   phone:{ start(S){ sfx.phone(); say(S.lines||[],()=>finishStep()); } },
   cook:{ interact(S){

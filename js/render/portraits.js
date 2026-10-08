@@ -11,8 +11,8 @@ const LOOK = {
       hw:25,hh:30,jaw:19,wrinkles:2,brow:'#6a5040',browA:0.22,thick:true,thinLips:true},
   SA:{skin:'#e6b998',hair:'swept',hc:'#5e4430',eyes:'#5a4632',outfit:'suit',cloth:'#2c2828',shirt:'#e39c84',tie:'#c8a040',tieStripe:'#7a5a20',
       hw:21,hh:30,jaw:13,wrinkles:2,brow:'#4e3828',browA:-0.06,smirk:true,thinLips:true},
-  T: {skin:'#b98058',hair:'buzz',hc:'#151210',eyes:'#2a1a10',beard:'mustache',bc:'#2a1e16',outfit:'chainshirt',cloth:'#f2f0ea',pendant:true,
-      hw:23,hh:29,jaw:16,brow:'#1a1410',browA:0.3,thick:true,wrinkles:1},
+  T: {skin:'#b47a52',hair:'buzz',hc:'#121010',eyes:'#24160e',beard:'stubble',bc:'#2a1e16',outfit:'chainshirt',cloth:'#efe9da',pendant:true,
+      hw:24,hh:29,jaw:19,brow:'#141010',browA:0.34,thick:true,wrinkles:2,thinLips:true},
   G: {skin:'#6e4630',hair:'receding',hc:'#2e2a28',eyes:'#24160e',glasses:'gus',beard:'stubble',bc:'#8a8480',outfit:'suit',cloth:'#62818c',shirt:'#a9c7e2',tie:'#2a333d',tieStripe:'#4a5560',
       hw:21,hh:30,jaw:12,wrinkles:2,brow:'#2a2420',browA:0.03},
   WJ:{skin:'#ecc9a8',hair:'shaggy',hc:'#4e3420',eyes:'#5a4030',outfit:'plaidopen',cloth:'#7a3a32',shirt:'#5e5e60',check:'#3a4a6a',hw:20,hh:28,jaw:12,brow:'#4a3020',browA:0.02},
@@ -25,8 +25,8 @@ const LOOK = {
   TO:{skin:'#eccaaa',hair:'short',hc:'#6a5040',eyes:'#4a6a8a',outfit:'jacket',cloth:'#4a5a3a',shirt:'#8a8a7a',hw:20,hh:28,jaw:13,brow:'#6a5040',browA:0},
   JK:{skin:'#dcb08e',hair:'buzz',hc:'#9a9890',eyes:'#4a4a40',beard:'mustache',bc:'#9a9890',outfit:'jacket',cloth:'#2a2a2a',shirt:'#5a5a5a',hw:22,hh:29,jaw:15,wrinkles:3,brow:'#8a8880',browA:0.2},
   LY:{skin:'#f0d4c0',hair:'bob',hc:'#3a2a20',eyes:'#4a5a6a',outfit:'blouse',cloth:'#9a8aaa',lips:'#a06070',hw:19,hh:28,jaw:9,brow:'#3a2a20',browA:0.1,female:true},
-  K8:{skin:'#c08a60',hair:'buzz',hc:'#1a1410',eyes:'#2a1a10',beard:'goatee',bc:'#1a1410',outfit:'jacket',cloth:'#2a2a3a',shirt:'#eeeeee',hw:22,hh:29,jaw:15,brow:'#1a1410',browA:0.2},
-  EM:{skin:'#d0a888',hair:'buzz',hc:'#2a2420',eyes:'#2a2420',beard:'goatee',bc:'#2a2420',outfit:'tee',cloth:'#3a3a2a',hw:21,hh:28,jaw:14,brow:'#2a2420',browA:0.2},
+  K8:{skin:'#c8956a',hair:'short',hc:'#141010',eyes:'#2a1a10',beard:'fullshort',bc:'#1e1612',outfit:'vest',cloth:'#c9a030',shirt:'#f4f2ec',hw:21,hh:29,jaw:14,brow:'#141010',browA:0.12},
+  EM:{skin:'#d2a47c',hair:'beanie',hc:'#18181a',eyes:'#1e1610',narrow:true,beard:'goatee',bc:'#1e1814',outfit:'tank',cloth:'#3a3d44',tattoo:true,cord:true,hw:21,hh:29,jaw:15,brow:'#1e1814',browA:0.26},
   GR:{skin:'#f0d0b8',hair:'bob',hc:'#8a5a3a',eyes:'#4a6a7a',outfit:'blouse',cloth:'#c8b8a8',lips:'#b07070',earrings:true,hw:20,hh:28,jaw:10,brow:'#8a5a3a',browA:0.04,female:true},
   EL:{skin:'#ecc8ac',hair:'short',hc:'#6a6058',eyes:'#4a5a6a',beard:'stubble',bc:'#7a7068',outfit:'suit',cloth:'#3a3a40',shirt:'#e8e8ee',tie:'#6a7a8a',tieStripe:'#8a9aaa',hw:21,hh:29,jaw:13,brow:'#6a6058',browA:0.06},
   BA:{skin:'#eccaaa',hair:'cap',hc:'#3a3a3a',eyes:'#4a3a2a',beard:'stubble',bc:'#8a6a4a',outfit:'tee',cloth:'#5a6a3a',hw:21,hh:28,jaw:13,brow:'#6a5040',browA:0.06},
@@ -71,7 +71,7 @@ function eyeShape(x,y,L,t,id){
   ctx.fillStyle='rgba(90,50,30,.13)'; ctx.beginPath(); ctx.ellipse(x,y-0.5,6.5,4.2,0,0,7); ctx.fill();
   if(blink){ ctx.strokeStyle='rgba(60,30,20,.8)'; ctx.lineWidth=1.3; ctx.beginPath(); ctx.moveTo(x-5,y); ctx.quadraticCurveTo(x,y+1.5,x+5,y); ctx.stroke(); return; }
   ctx.save();
-  ctx.beginPath(); ctx.moveTo(x-5.2,y); ctx.quadraticCurveTo(x,y-(L.female?4.2:3.6),x+5.2,y); ctx.quadraticCurveTo(x,y+2.8,x-5.2,y); ctx.closePath();
+  const eh=L.narrow?0.6:1; ctx.beginPath(); ctx.moveTo(x-5.2,y); ctx.quadraticCurveTo(x,y-(L.female?4.2:3.6)*eh,x+5.2,y); ctx.quadraticCurveTo(x,y+2.8*eh,x-5.2,y); ctx.closePath();
   ctx.fillStyle='#f4efe8'; ctx.fill(); ctx.clip();
   ctx.fillStyle=L.eyes; ctx.beginPath(); ctx.arc(x,y-0.2,2.6,0,7); ctx.fill();
   ctx.fillStyle='#0c0a08'; ctx.beginPath(); ctx.arc(x,y-0.2,1.15,0,7); ctx.fill();
@@ -95,6 +95,11 @@ function walterLook(){
   if(i>=at('5x15')) return Object.assign({},L,{hair:'receding',hc:'#9a9288',beard:'goatee',bc:'#8a8278',bc2:'#b8b0a6',glasses:'thick',cloth:'#3a3530',wrinkles:3});
   return Object.assign({},L,{hair:'bald'},(i>=at('4x09')&&i<=at('4x10'))?{bandage:true}:{});
 }
+// estampado de eslabones en diagonal (camisa de Tuco)
+function chainPattern(x,y,w,h,col){ ctx.save(); ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip(); ctx.strokeStyle=col; ctx.lineWidth=1.1;
+  for(let k=-w;k<w*1.2;k+=10){ for(let t=0;t<h*1.6;t+=5){ const cx=x+k+t*0.7, cy=y+t*0.7; ctx.beginPath(); ctx.ellipse(cx,cy,2.3,1.3,0.78,0,7); ctx.stroke(); } }
+  ctx.restore(); }
+function chainPatternClipTri(sd){}
 let PORTRAIT_BARE=false;
 let PORTRAIT_OVERRIDE=null; // cambios de ropa del retrato (cinemáticas: que el busto coincida con el cuerpo)
 let PORTRAIT_HAT=null; // null: según el sitio del jugador · true/false: forzado (cinemáticas)
@@ -154,7 +159,12 @@ function drawPortrait(id,cx,cy,r,talking,t){
       ctx.strokeStyle='rgba(0,0,0,.35)'; ctx.lineWidth=1; ctx.stroke(); } }
   if(L.outfit==='bowling'){ ctx.fillStyle=L.shirt; ctx.fillRect(-40,24,10,40); ctx.fillRect(30,24,10,40);
     ctx.fillStyle='#3a3a3a'; ctx.beginPath(); ctx.moveTo(-13,22); ctx.lineTo(0,34); ctx.lineTo(13,22); ctx.closePath(); ctx.fill(); }
+  if(L.outfit==='vest'){ ctx.fillStyle=L.shirt; ctx.fillRect(-56,20,112,44); ctx.fillStyle=L.shirt; ctx.beginPath(); ctx.moveTo(-14,22); ctx.lineTo(14,22); ctx.lineTo(0,34); ctx.fill();
+    ctx.fillStyle=L.cloth; ctx.beginPath(); ctx.moveTo(-40,24); ctx.lineTo(-14,20); ctx.lineTo(-8,62); ctx.lineTo(-42,62); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(40,24); ctx.lineTo(14,20); ctx.lineTo(8,62); ctx.lineTo(42,62); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle=shade(L.cloth,-30); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(-14,20); ctx.lineTo(-8,62); ctx.moveTo(14,20); ctx.lineTo(8,62); ctx.stroke(); }
   if(L.outfit==='tank'){ ctx.fillStyle=L.skin; ctx.fillRect(-56,20,26,44); ctx.fillRect(30,20,26,44); ctx.fillStyle=shade(L.skin,-25); ctx.fillRect(-32,20,3,44); ctx.fillRect(29,20,3,44);
+  if(L.tattoo){ ctx.strokeStyle='rgba(30,40,50,.55)'; ctx.lineWidth=1.2; for(const sx of [-43,43]){ for(let k=0;k<4;k++){ ctx.beginPath(); ctx.arc(sx+(k%2?4:-4),30+k*8,4+k%2,0,5); ctx.stroke(); } ctx.fillStyle='rgba(30,40,50,.5)'; ctx.fillRect(sx-12,58,24,3); } }
+  if(L.cord){ ctx.strokeStyle='#3a2a1e'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(-12,22); ctx.quadraticCurveTo(0,40,12,22); ctx.stroke(); }
     ctx.fillStyle=L.skin; ctx.beginPath(); ctx.ellipse(0,22,14,10,0,0,Math.PI); ctx.fill(); }
   if(L.outfit==='plaidjacket'||L.outfit==='plaidopen'){
     ctx.save();
@@ -170,12 +180,12 @@ function drawPortrait(id,cx,cy,r,talking,t){
     else { ctx.fillStyle=L.shirt; ctx.beginPath(); ctx.moveTo(-12,22); ctx.lineTo(12,22); ctx.lineTo(9,64); ctx.lineTo(-9,64); ctx.closePath(); ctx.fill();
       ctx.fillStyle=shade(L.shirt,-20); ctx.beginPath(); ctx.ellipse(0,23,11,4,0,0,Math.PI); ctx.fill(); }
   }
-  if(L.outfit==='chainshirt'){
-    ctx.strokeStyle='#1c1c1c'; ctx.lineWidth=1.6; ctx.setLineDash([2.5,1.5]);
-    for(let k=-90;k<90;k+=9){ ctx.beginPath(); ctx.moveTo(k,20); ctx.lineTo(k+45,66); ctx.stroke(); }
-    ctx.setLineDash([]);
-    ctx.fillStyle=shade(L.cloth,-15); ctx.beginPath(); ctx.moveTo(-14,21); ctx.lineTo(-3,34); ctx.lineTo(-17,30); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(14,21); ctx.lineTo(3,34); ctx.lineTo(17,30); ctx.closePath(); ctx.fill();
-    ctx.fillStyle=L.skin; ctx.beginPath(); ctx.moveTo(-6,22); ctx.lineTo(6,22); ctx.lineTo(0,36); ctx.closePath(); ctx.fill();
+  if(L.outfit==='chainshirt'){ // camisa crema con estampado diagonal de cadenas, cuello abierto y colgante (Tuco)
+    chainPattern(-60,18,120,50,'#1c1a18');
+    ctx.fillStyle=shade(L.cloth,-12); for(const sd of [-1,1]){ ctx.beginPath(); ctx.moveTo(sd*13,20); ctx.lineTo(sd*26,24); ctx.lineTo(sd*6,40); ctx.closePath(); ctx.fill(); chainPatternClipTri(sd); }
+    ctx.fillStyle=L.skin; ctx.beginPath(); ctx.moveTo(-8,21); ctx.lineTo(8,21); ctx.lineTo(0,42); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='#d8d4c8'; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(-7,22); ctx.quadraticCurveTo(0,40,7,22); ctx.stroke();
+    ctx.fillStyle='#e0dcd0'; ctx.beginPath(); ctx.ellipse(0,40,3.5,5,0,0,7); ctx.fill(); ctx.strokeStyle='#8a8478'; ctx.lineWidth=.8; ctx.stroke();
   }
   if(L.outfit==='tee'){ ctx.fillStyle=shade(L.cloth,-30); ctx.beginPath(); ctx.ellipse(0,23,12,5,0,0,Math.PI); ctx.fill(); }
   ctx.restore(); ctx.restore();
@@ -226,18 +236,26 @@ function drawPortrait(id,cx,cy,r,talking,t){
     ctx.fillStyle='rgba(255,255,255,.07)'; for(let i=0;i<30;i++){ ctx.fillRect(-W+((i*37)%(2*W)),-H+((i*13)%(H*0.4)),1,2); }
     ctx.restore();
   }
-  if(L.hair==='walt1'){ // Walter temporada 1: entradas muy marcadas, frente alta, pelo fino con raya y laterales canosos
+  if(L.hair==='walt1'){ // Walter T1: pelo castaño claro y fino, peinado hacia atrás, entradas marcadas en "M" y laterales cortos
     ctx.save(); headPath(W+1,H+1,L.jaw); ctx.clip();
-    // laterales y nuca, más densos
-    ctx.fillStyle=L.hc; ctx.beginPath(); ctx.moveTo(-W-2,2); ctx.quadraticCurveTo(-W-1,-H*0.55,-W*0.62,-H*0.72); ctx.lineTo(-W*0.5,-H*0.58); ctx.quadraticCurveTo(-W*0.8,-H*0.3,-W*0.78,0); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(W+2,2); ctx.quadraticCurveTo(W+1,-H*0.55,W*0.62,-H*0.72); ctx.lineTo(W*0.5,-H*0.58); ctx.quadraticCurveTo(W*0.8,-H*0.3,W*0.78,0); ctx.closePath(); ctx.fill();
-    // coronilla: pelo fino que deja ver la piel, con entradas en "M"
-    ctx.globalAlpha=0.72; ctx.beginPath(); ctx.moveTo(-W*0.64,-H*0.7);
-    ctx.quadraticCurveTo(-W*0.45,-H*0.84,-W*0.2,-H*0.8); ctx.quadraticCurveTo(-W*0.05,-H*0.9,W*0.12,-H*0.8);
-    ctx.quadraticCurveTo(W*0.42,-H*0.84,W*0.64,-H*0.7); ctx.lineTo(W+2,-H-4); ctx.lineTo(-W-2,-H-4); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
-    // raya al lado y mechones peinados
-    ctx.strokeStyle=shade(L.hc,-30); ctx.lineWidth=0.7; ctx.beginPath(); ctx.moveTo(-W*0.35,-H*0.82); ctx.quadraticCurveTo(-W*0.3,-H*0.95,-W*0.2,-H-2); ctx.stroke();
-    ctx.strokeStyle=shade(L.hc,25); for(let i=0;i<7;i++){ ctx.beginPath(); ctx.moveTo(-W*0.25+i*3,-H*0.86); ctx.quadraticCurveTo(-W*0.1+i*3.5,-H*0.98,W*0.3+i*1.5,-H*0.9); ctx.stroke(); }
+    const g=ctx.createLinearGradient(0,-H,0,-H*0.3); g.addColorStop(0,shade(L.hc,18)); g.addColorStop(1,shade(L.hc,-12));
+    // masa superior: cubre la coronilla; el borde delantero dibuja las entradas (frente despejada en el centro-lateral)
+    ctx.fillStyle=g; ctx.beginPath();
+    ctx.moveTo(-W-2,-H*0.12);
+    ctx.quadraticCurveTo(-W*0.98,-H*0.5,-W*0.7,-H*0.66);          // patilla → sien
+    ctx.quadraticCurveTo(-W*0.48,-H*0.62,-W*0.36,-H*0.8);         // entrada izquierda (hueco hacia atrás)
+    ctx.quadraticCurveTo(-W*0.16,-H*0.84,0,-H*0.76);               // mechón central algo adelantado
+    ctx.quadraticCurveTo(W*0.16,-H*0.84,W*0.36,-H*0.8);
+    ctx.quadraticCurveTo(W*0.48,-H*0.62,W*0.7,-H*0.66);           // entrada derecha
+    ctx.quadraticCurveTo(W*0.98,-H*0.5,W+2,-H*0.12);
+    ctx.lineTo(W+2,-H-4); ctx.lineTo(-W-2,-H-4); ctx.closePath(); ctx.fill();
+    // peinado hacia atrás: pocas líneas suaves dentro de la masa, nunca fuera
+    ctx.save(); ctx.clip(); ctx.strokeStyle='rgba(255,240,210,.18)'; ctx.lineWidth=0.9;
+    for(let i=-3;i<=3;i++){ ctx.beginPath(); ctx.moveTo(i*W*0.17,-H*0.78); ctx.quadraticCurveTo(i*W*0.2,-H*0.92,i*W*0.26,-H-2); ctx.stroke(); }
+    ctx.strokeStyle='rgba(60,40,20,.18)'; for(const sd of [-1,1]){ ctx.beginPath(); ctx.moveTo(sd*W*0.82,-H*0.2); ctx.quadraticCurveTo(sd*W*0.86,-H*0.45,sd*W*0.62,-H*0.72); ctx.stroke(); }
+    ctx.restore();
+    // un poco de canas en las sienes
+    ctx.fillStyle='rgba(200,195,185,.35)'; for(const sd of [-1,1]){ ctx.beginPath(); ctx.ellipse(sd*W*0.9,-H*0.3,W*0.12,H*0.16,0,0,7); ctx.fill(); }
     ctx.restore();
   }
   if(L.hair==='swept'){
@@ -270,8 +288,20 @@ function drawPortrait(id,cx,cy,r,talking,t){
     ctx.lineTo(W-2,-H*0.25); ctx.lineTo(W*0.5,-H*0.18); ctx.lineTo(W*0.3,-H*0.35); ctx.lineTo(0,-H*0.12); ctx.lineTo(-W*0.25,-H*0.3); ctx.lineTo(-W*0.55,-H*0.1); ctx.lineTo(-W+2,-H*0.3); ctx.closePath(); ctx.fill();
     ctx.strokeStyle=shade(L.hc,30); ctx.lineWidth=0.9; for(let i=0;i<6;i++){ ctx.beginPath(); ctx.moveTo(-W*0.6+i*W*0.25,-H*0.85); ctx.quadraticCurveTo(-W*0.4+i*W*0.2,-H*0.5,-W*0.5+i*W*0.22,-H*0.2); ctx.stroke(); }
   }
+  if(L.hair==='beanie'){ ctx.beginPath(); ctx.ellipse(0,-H*0.42,W+3,H*0.7,0,Math.PI,0); ctx.fill(); ctx.fillRect(-W-3,-H*0.46,2*W+6,8);
+    ctx.strokeStyle='rgba(255,255,255,.08)'; ctx.lineWidth=1; for(let x=-W;x<W;x+=4){ ctx.beginPath(); ctx.moveTo(x,-H*0.46); ctx.lineTo(x,-H*0.38); ctx.stroke(); } }
   if(L.hair==='cap'){ ctx.beginPath(); ctx.ellipse(0,-H*0.45,W+2,H*0.62,0,Math.PI,0); ctx.fill(); ctx.fillRect(-W-2,-H*0.5,2*W+4,5); E(9,-H*0.45+3,20,4,shade(L.hc,-25)); }
 
+  // mechones: el pelo deja de ser una masa lisa (luces y sombras en la dirección del peinado, borde irregular)
+  if(['short','buzz','swept','wavy','shaggy','spiky','bob'].includes(L.hair)&&L.hc){
+    ctx.save(); headPath(W+3,H+3,L.jaw); ctx.clip();
+    const top=-H-2, bot=L.hair==='bob'?H*0.2:-H*0.5, dir=L.hair==='swept'?0.6:L.hair==='walt1'?0.35:0.15, n=L.hair==='buzz'?10:18;
+    for(let i=0;i<n;i++){ const x0=-W+((i*37)%100)/100*2*W, len=(bot-top)*(0.35+((i*13)%10)/20);
+      ctx.strokeStyle=i%3?'rgba(255,255,255,.13)':'rgba(0,0,0,.18)'; ctx.lineWidth=i%3?0.9:1.2;
+      ctx.beginPath(); ctx.moveTo(x0,top+2); ctx.quadraticCurveTo(x0+dir*8,top+len*0.5,x0+dir*14,top+len); ctx.stroke(); }
+    ctx.restore();
+    if(['short','receding','walt1','swept'].includes(L.hair)){ ctx.fillStyle=L.hc; for(const sx of [-1,1]){ ctx.beginPath(); ctx.moveTo(sx*(W-1),-H*0.15); ctx.lineTo(sx*(W+1),-H*0.02); ctx.lineTo(sx*(W-3),-H*0.05); ctx.closePath(); ctx.fill(); } } // patillas
+  }
   // --- cejas ---
   ctx.strokeStyle=L.brow; ctx.lineCap='round'; ctx.lineWidth=L.thick?3.2:L.female?1.6:2.4;
   const by=-6, ba=L.browA*10;
@@ -299,6 +329,10 @@ function drawPortrait(id,cx,cy,r,talking,t){
   ctx.beginPath(); ctx.moveTo(-mw+1,my+open*0.9); ctx.quadraticCurveTo(0,my+open+(L.thinLips?2:3),mw-1,my+open*0.9-sm*0.5); ctx.quadraticCurveTo(0,my+open+0.8,-mw+1,my+open*0.9); ctx.fill(); ctx.globalAlpha=1;
   E(0,my+open+4,4,1.2,'rgba(80,30,20,.12)');
   // --- barba ---
+  if(L.beard==='fullshort'){ // barba corta y recortada que cubre mandíbula y mentón (Krazy-8)
+    ctx.fillStyle=L.bc; ctx.globalAlpha=0.5; ctx.beginPath(); ctx.moveTo(-W+1,0); ctx.quadraticCurveTo(-W*0.8,H*0.75,0,H+1); ctx.quadraticCurveTo(W*0.8,H*0.75,W-1,0);
+    ctx.lineTo(W-4,6); ctx.quadraticCurveTo(W*0.4,my+3,6,my+open+4); ctx.lineTo(-6,my+open+4); ctx.quadraticCurveTo(-W*0.4,my+3,-W+4,6); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
+    E(-3.5,my-3,4.5,1.8,L.bc,0.15); E(3.5,my-3,4.5,1.8,L.bc,-0.15); }
   if(L.beard==='goatee'){
     ctx.fillStyle=L.bc;
     ctx.beginPath(); ctx.moveTo(-9,my+1); ctx.quadraticCurveTo(-9,my-5,-2,my-3.6); ctx.lineTo(2,my-3.6); ctx.quadraticCurveTo(9,my-5,9,my+1);

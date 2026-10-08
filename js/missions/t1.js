@@ -74,9 +74,9 @@ addMissions([
       SH.med('desert','hard',[ch('W',0.37,{pose:'raise'}),ch('J',0.53),ch('EM',0.72,{face:-1}),ch('K8',0.88,{face:-1})],'',{say:['W','Esperad. Os enseñaré la receta. Dentro de la autocaravana.'],props:[{t:'rv',x:0.2}],dur:3.8}),
       SH.det('reaction','rv','hard','Walter mezcla el fósforo rojo con agua hirviendo. El gas empieza a llenar el interior.',{dur:3.8}),
       SH.med('rv','hard',[ch('W',0.36,{pose:'kneel'}),ch('J',0.57,{pose:'lie',face:-1})],'Jesse cae inconsciente. Walter consigue salir y cierra la puerta.',{props:[{t:'reaction',x:0.74,y:0.81,s:0.62}],dur:4}),
-      SH.wide('desert','hard',[ch('W',0.3,{act:'walkin',from:-0.2}),ch('EM',0.62,{pose:'lie'}),ch('K8',0.82,{pose:'lie',face:-1})],'Emilio y Krazy-8 quedan fuera de combate. Se oyen sirenas a lo lejos.',{props:[{t:'rv',x:0.38}],move:'shake',dur:3.8}),
+      SH.wide('desert','hard',[ch('W',0.3,{act:'walkin',from:-0.2}),ch('EM',0.58,{pose:'lie'}),ch('K8',0.66,{pose:'lie',face:-1})],'Emilio y Krazy-8 quedan fuera de combate.',{props:[{t:'rv',x:0.38}],move:'shake',dur:3.8}),
     ]}], done(){ giveGun(12); }},
-    {type:'escape', stars:2, obj:'Se oyen sirenas. ¡Pierde a la policía!', lines:[
+    {type:'leave', at:'desert', car:'rv', sirens:true, r:1500, obj:'¡Se oyen sirenas! Sube a la autocaravana y sal de ahí', lines:[
       ['N','Las sirenas pasan de largo. Eran camiones de bomberos: el desierto se está quemando.'],
       ['N','Walter vuelve a casa. Esa noche, Skyler lo nota distinto. Él también.'],
     ]},

@@ -53,7 +53,7 @@ document.getElementById('c').id='c';
 <script src="../js/missions/t5b.js"></script>
 <script>
 // escenas que están dentro de las misiones (pasos 'cine'): también se listan, como "1x07 · misión"
-for(const M of MISSIONS) for(const S of M.steps) if(S.type==='cine'){ const k=M.code+' · misión'; CUTSCENES[k]=(CUTSCENES[k]||[]).concat(S.scenes); }
+for(const M of MISSIONS) for(const S of M.steps) if(S.scenes&&S.scenes.length){ const k=M.code+' · misión'; CUTSCENES[k]=(CUTSCENES[k]||[]).concat(S.scenes); }
 </script>
 <script>
 "use strict";
@@ -66,7 +66,8 @@ let cur=null;
 function play(code,si){
   cur={code,si}; G.mi=ORDER.indexOf(code.split(' ')[0]);
   for(const b of document.querySelectorAll('#list button')) b.classList.toggle('on',b.dataset.k===code+'/'+si);
-  playCutscene(CUTSCENES[code].slice(si,si+1),()=>play(code,si));
+  const sc=(CUTSCENES[code]||[]).slice(si,si+1); if(!sc.length||!sc[0].shots||!sc[0].shots.length) return;
+  playCutscene(sc,()=>setTimeout(()=>play(code,si),50));
 }
 const list=document.getElementById('list');
 for(const code of ORDER){ const d=document.createElement('div'); d.className='ep'; d.textContent=code; list.appendChild(d);
