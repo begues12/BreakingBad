@@ -1,47 +1,62 @@
 "use strict";
 // ======================= TEMPORADA 1 =======================
 addMissions([
-{ code:'1x01', season:'T1', title:'Pilot', reward:0,
-  intro:[
-    ['N','Albuquerque, Nuevo México. 2008.'],
-    ['W','Cincuenta años. Profesor de química en el instituto. Y por las tardes, lavando coches para llegar a fin de mes.'],
-    ['W','Hoy el médico me ha dicho que tengo cáncer de pulmón. Inoperable. Dos años... con suerte.'],
-    ['S','¿Walt? Llevas toda la mañana callado. ¿Ha pasado algo en el trabajo?'],
-    ['W','No, Sky. Estoy bien. Solo cansado.'],
-    ['W','Ayer Hank me llevó a ver una redada de la DEA. Un tipo escapó por la ventana... Jesse Pinkman. Un antiguo alumno.'],
-    ['N','CONTROLES: WASD moverse/conducir · F subir/bajar del coche · E interactuar · ESPACIO freno de mano · Clic disparar · P/M mapa y pausa'],
-  ],
+{ code:'1x01', season:'T1', title:'Pilot', reward:0, cineStart:3,
   steps:[
-    {type:'talk', at:'jesse', obj:'Ve a casa de Jesse Pinkman', lines:[
-      ['J','¿Señor White? ¿Qué demonios hace aquí, tío?'],
-      ['W','Te vi ayer, Jesse. Saltando por la ventana mientras la DEA arrestaba a tu socio.'],
-      ['W','Tú conoces el negocio. Yo conozco la química. Quiero que seamos socios.'],
+    {type:'talk', at:'instituto', obj:'Da tu clase de química en el instituto', start(){ setTimeout(()=>toast('WASD moverse/conducir · F coche · E interactuar · ESPACIO freno de mano · Clic disparar · P/M mapa',10),4500); }, lines:[
+      ['W','La química es el estudio de la materia. Pero yo prefiero verla como el estudio del cambio.'],
+      ['W','Crecimiento, decadencia, transformación. Es fascinante, de verdad.'],
+      ['N','Nadie en el aula está escuchando.'],
+    ]},
+    {type:'talk', at:'carwash', obj:'Ve a tu segundo trabajo: el lavadero', lines:[
+      ['X','(Bogdan) Walter, hoy faltan manos fuera. Lava este coche.'],
+      ['N','El coche es de Chad, un alumno suyo. Se ríe y le hace fotos mientras Walter frota las llantas.'],
+      ['N','Walter tose. No puede respirar. Se desploma junto al coche.'],
+    ]},
+    {type:'talk', at:'hospital', obj:'Te han llevado al hospital', lines:[
+      ['X','Señor White, tiene usted un carcinoma pulmonar. Inoperable. Con tratamiento... quizá un par de años.'],
+      ['W','(Tiene mostaza en la bata.)'],
+      ['N','Walter no se lo cuenta a nadie. Llega a casa y le dice a Skyler que el día ha ido bien.'],
+    ]},
+    {type:'goto', at:'spooge', obj:'Acompaña a Hank a la redada de la DEA', lines:[
+      ['H','Quédate en el coche, Walt. En serio.'],
+      ['N','Los agentes sacan esposado a Emilio Koyama. Desde el coche, Walter ve a otro chico saltar por la ventana del vecino, a medio vestir.'],
+      ['W','(...Pinkman. Jesse Pinkman. Un antiguo alumno.)'],
+      ['N','Walter no dice nada. Jesse escapa.'],
+    ]},
+    {type:'talk', at:'jesse', obj:'Esa noche, ve a casa de Jesse Pinkman', lines:[
+      ['J','¿Señor White? ¿Qué hace aquí, tío? ¿Me ha seguido?'],
+      ['W','Te vi esta mañana, Jesse. Saltando por la ventana mientras la DEA detenía a tu socio.'],
+      ['W','Tú conoces el negocio. Yo conozco la química. O cocinas conmigo... o le cuento a la DEA dónde estás.'],
       ['J','...¿Usted? ¿Don Aburrido de los cardiganes?'],
       {choices:[
         ['"Socios al 50%."', ()=>{ G.loyalty+=1; return [['J','Vale... Me gusta cómo suena eso, señor White.']]; }],
         ['"Yo cocino, tú vendes. 70/30."', ()=>{ G.loyalty-=1; return [['J','¿Setenta-treinta? Menudo cabrón está hecho, tío.']]; }],
       ]},
-      ['J','Hay un tío que vende una autocaravana vieja. Siete mil pavos.'],
+      ['W','Necesitaremos material de laboratorio. Yo me encargo.'],
     ]},
-    {type:'talk', at:'rvlot', money:7000, obj:'Compra la autocaravana ($7,000)', lines:[
-      ['V','Esta preciosa Fleetwood Bounder. Motor revisado... más o menos. Siete mil.'],
-      ['W','Servirá.'],
+    {type:'collect', at:'instituto', n:3, item:'material de laboratorio', obj:'Llévate material del laboratorio del instituto'},
+    {type:'talk', at:'rvlot', money:7000, obj:'Jesse ha encontrado una autocaravana: págala ($7,000)', lines:[
+      ['J','Una Fleetwood Bounder. Siete mil. Mi colega Combo dice que el motor está bien... más o menos.'],
+      ['W','Son mis ahorros. Todos.'],
     ], done(){ giveRV('rvlot'); }},
     {type:'cook', at:'desert', obj:'Conduce la autocaravana al desierto y cocina', pre:[
-      ['W','Jesse, la química es el estudio del cambio. Nada de atajos. Precisión.'],
+      ['W','Nada de atajos. Nada de chapuzas. Precisión.'],
       ['N','MINIJUEGO: mantén la temperatura en la franja verde con W/S y pulsa la tecla de cada evento.'],
     ], lines:[
-      ['J','Tío... ¡es azul! ¡Es usted un puto genio, señor White!'],
-      ['J','Conozco a alguien que lo comprará. Krazy-8. Era socio de Emilio, el que trincaron ayer.'],
+      ['J','Tío... es lo más puro que he visto en mi vida. ¡Es usted un artista!'],
+      ['J','Se lo llevo a Krazy-8. El primo de Emilio. Paga bien.'],
     ]},
-    {type:'talk', at:'desert', obj:'Espera a Krazy-8 y Emilio en el desierto', lines:[
-      ['EM','¡Es él! ¡El viejo estaba con la DEA en la redada! ¡Es un chivato!'],
+    {type:'talk', at:'desert', obj:'Krazy-8 y Emilio llegan al desierto', lines:[
+      ['EM','¡Es él! ¡El viejo estaba en la redada con la DEA! ¡Es un chivato!'],
       ['K8','Así que trabajas para la poli, abuelo. Mala elección.'],
-      ['W','Esperad. Puedo enseñaros la receta. Dentro de la autocaravana.'],
-      ['N','Walter mezcla fósforo rojo con agua hirviendo. El gas de fosfina llena la autocaravana. Cierra la puerta desde fuera.'],
+      ['W','Esperad. Os enseñaré la receta. Dentro de la autocaravana.'],
+      ['N','Walter echa fósforo rojo al agua hirviendo. Gas de fosfina. Sale y sujeta la puerta desde fuera.'],
+      ['N','La autocaravana arranca a toda prisa con Walter al volante. Jesse inconsciente. Dos hombres dentro. Se oyen sirenas.'],
     ], done(){ giveGun(12); }},
     {type:'escape', stars:2, obj:'Se oyen sirenas. ¡Pierde a la policía!', lines:[
-      ['W','(Grabando un vídeo) Skyler... Hay cosas que vas a oír de mí. Quiero que sepas que todo lo que hice, lo hice por la familia.'],
+      ['N','Las sirenas pasan de largo. Eran camiones de bomberos: el desierto se está quemando.'],
+      ['N','Walter vuelve a casa. Esa noche, Skyler lo nota distinto. Él también.'],
     ]},
   ],
   outro:[['N','Walter ha cruzado una línea. Ya no hay vuelta atrás.']] },

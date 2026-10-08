@@ -73,11 +73,12 @@ function driveCar(c,dt,acc,brk,steer,hand,idle){
     if(Math.abs(vr0)>140 && Math.random()<0.4) G.parts.push({x:c.x-ca*c.w/2,y:c.y-sa*c.w/2,vx:rand(-20,20),vy:rand(-20,20),life:0.7,c:'rgba(200,200,200,.25)',s:rand(6,10)});
   }
   collideWalls(c);
-  if(c._px!==undefined && hwyBlocked(c.x,c.y,c.layer||0)){ { c.x=c._px; c.y=c._py;
-      const sp=Math.hypot(c.vx,c.vy); if(sp>140){ sparks(c.x,c.y,6,c.vx,c.vy); carImpact(c,sp*0.4,c.x,c.y); }
-      c.vx*=-0.25; c.vy*=-0.25; c.av*=0.5; } }
-  // río: solo se cruza por los puentes
-  if(inWater(c.x,c.y)){ if(c._px!==undefined){ c.x=c._px; c.y=c._py; } c.vx*=-0.3; c.vy*=-0.3; c.av*=0.5; }
+  // superficie bajo el coche: si el desnivel es grande (pretil, borde de puente, agua) choca y vuelve atrás
+  { const sp=Math.hypot(c.vx,c.vy), nz=c._px===undefined?spawnZ(c.x,c.y,c.z):standZ(c.x,c.y,c.z,STEP_UP+sp*dt*0.3);
+    if(nz===null){ c.x=c._px; c.y=c._py;
+      if(sp>140){ sparks(c.x,c.y,6,c.vx,c.vy); carImpact(c,sp*0.4,c.x,c.y); }
+      c.vx*=-0.25; c.vy*=-0.25; c.av*=0.5; }
+    else c.z=nz; }
   c._px=c.x; c._py=c.y;
 }
 function collideWalls(c){
@@ -158,33 +159,33 @@ function updateWorld(dt){
       if(c.driver!=='player') driveCar(c,dt,false,false,0,false,true);
     }
     if(c.siren!==undefined) c.siren+=dt;
-    c.layer=layerAt(c.x,c.y,c.layer);
   }
   // colisiones coche-coche (impulsos)
   const cs=G.cars.filter(c=>!c.dead);
   for(let i=0;i<cs.length;i++) for(let j=i+1;j<cs.length;j++){
     const a=cs[i], b=cs[j];
     if(a.driver==='ai'&&b.driver==='ai') continue;
-    if((a.layer||0)!==(b.layer||0)) continue;
+    if(Math.abs((a.z||0)-(b.z||0))>3) continue;
     const lim=(a.w+b.w)/2+4; if(Math.abs(a.x-b.x)>lim||Math.abs(a.y-b.y)>lim) continue;
     collideCars(a,b);
   }
   // peatón jugador vs coches
-  if(!P.inCar) for(const c of cs){ if((c.layer||0)!==(P.layer||0)) continue; const d=dist(c.x,c.y,P.x,P.y); if(d<c.r+9){ const nx=(P.x-c.x)/(d||1), ny=(P.y-c.y)/(d||1); P.x=c.x+nx*(c.r+9); P.y=c.y+ny*(c.r+9); if(Math.abs(c.v)>150){ hurtPlayer(Math.abs(c.v)/12); c.v*=0.5; c.vx*=0.5; c.vy*=0.5; } } }
+  if(!P.inCar) for(const c of cs){ if(Math.abs(c.z-P.z)>3) continue; const d=dist(c.x,c.y,P.x,P.y); if(d<c.r+9){ const nx=(P.x-c.x)/(d||1), ny=(P.y-c.y)/(d||1); P.x=c.x+nx*(c.r+9); P.y=c.y+ny*(c.r+9); if(Math.abs(c.v)>150){ hurtPlayer(Math.abs(c.v)/12); c.v*=0.5; c.vx*=0.5; c.vy*=0.5; } } }
   G.cars=G.cars.filter(c=>!(c.dead&&!c.burnt));
 
+  if(G.decals.length>700) G.decals.splice(0,G.decals.length-700);
   // ---------- policía ----------
   const cops=G.cars.filter(c=>c.driver==='cop');
   const want=G.wanted*2;
   if(cops.length<want && Math.random()<dt*1.2) spawnCop();
   if(G.wanted===0) for(const c of cops){ if(dist(c.x,c.y,P.x,P.y)>900){ c.dead=true; } else { c.driver=null; c.parked=true; } }
   if(G.wanted>0){
-    const seen=cops.some(c=>copSees(c.x,c.y,c.layer,650)) || G.officers.some(o=>o.hp>0&&o.state==='out'&&copSees(o.x,o.y,0,500));
+    const seen=cops.some(c=>copSees(c.x,c.y,c.z,650)) || G.officers.some(o=>o.hp>0&&o.state==='out'&&copSees(o.x,o.y,o.z,500));
     if(!seen) G.evadeT+=dt; else G.evadeT=Math.max(0,G.evadeT-dt*2);
     if(G.evadeT>5+G.wanted*2.5){ G.wanted--; G.evadeT=0; toast(G.wanted? 'Pierdes una estrella':'¡Has despistado a la policía!',2); }
     // arresto
     const spd=P.inCar?Math.abs(P.inCar.v):0;
-    const close=cops.some(c=>(c.layer||0)===(P.layer||0) && dist(c.x,c.y,P.x,P.y)<75 && Math.abs(c.v)<120) || G.officers.some(o=>o.hp>0&&o.state==='out'&&!(P.layer||0)&&dist(o.x,o.y,P.x,P.y)<45);
+    const close=cops.some(c=>Math.abs(c.z-P.z)<3 && dist(c.x,c.y,P.x,P.y)<75 && Math.abs(c.v)<120) || G.officers.some(o=>o.hp>0&&o.state==='out'&&Math.abs((o.z||0)-P.z)<3&&dist(o.x,o.y,P.x,P.y)<45);
     if(close && spd<40){ G.bustT+=dt; if(G.bustT>2.5 && !G.dead){ G.dead='busted'; G.deadT=3.5; sfx.star(); } } else G.bustT=Math.max(0,G.bustT-dt);
   } else G.bustT=0;
 
@@ -199,7 +200,7 @@ function updateWorld(dt){
   for(const p of G.peds){
     if(p.dead){ p.deadT-=dt; continue; }
     updatePed(p,dt);
-    for(const c of cs) if(c.driver!=='player' && !c.layer && Math.abs(c.v)>120 && dist(c.x,c.y,p.x,p.y)<c.r+5) killPed(p);
+    for(const c of cs) if(c.driver!=='player' && !onDeck(c) && Math.abs(c.v)>120 && dist(c.x,c.y,p.x,p.y)<c.r+5) killPed(p);
   }
   G.peds=G.peds.filter(p=>!(p.dead&&p.deadT<=0) && dist(p.x,p.y,P.x,P.y)<1700);
   for(let k=0;k<3&&G.peds.filter(p=>!p.dead).length<80;k++) spawnPed(false);
@@ -284,7 +285,7 @@ function aiTraffic(c,dt){
   // ¿obstáculo delante?
   let target=SPEED_OF[r0.kind];
   const fx=c.x+Math.cos(c.a)*55, fy=c.y+Math.sin(c.a)*55;
-  for(const o of G.cars){ if(o!==c && !o.dead && (o.layer||0)===(c.layer||0) && Math.abs(o.x-fx)<40 && Math.abs(o.y-fy)<40 && dist(o.x,o.y,fx,fy)<36){ target=0; break; } }
+  for(const o of G.cars){ if(o!==c && !o.dead && Math.abs(o.z-c.z)<3 && Math.abs(o.x-fx)<40 && Math.abs(o.y-fy)<40 && dist(o.x,o.y,fx,fy)<36){ target=0; break; } }
   if(dist(P.x,P.y,fx,fy)<38) { target=0; if(Math.random()<dt*0.5) beep(400,0.2,'sawtooth',0.02); }
   for(const p of G.peds) if(!p.dead && Math.abs(p.x-fx)<30 && dist(p.x,p.y,fx,fy)<26){ target=0; break; }
   // frenar en curvas cerradas
@@ -300,7 +301,7 @@ function aiTraffic(c,dt){
   }
   const r1=ROADS[c.road];
   if(c.s<=0){ c.s=0; c.dir=1; c.lastX=-1; } else if(c.s>=r1.len){ c.s=r1.len; c.dir=-1; c.lastX=-1; }
-  const p=trafficPos(c); c.x=p.x; c.y=p.y; c.a+=angDiff(c.a,p.a)*Math.min(1,dt*9);
+  const p=trafficPos(c); c.x=p.x; c.y=p.y; c.z=p.z; c.a+=angDiff(c.a,p.a)*Math.min(1,dt*9);
   c.vx=Math.cos(c.a)*c.v; c.vy=Math.sin(c.a)*c.v; c.av=0;
 }
 function spawnCop(){
@@ -323,7 +324,7 @@ function aiCop(c,dt){
     return;
   }
   const footP=!P.inCar||Math.abs(P.inCar.v)<60;
-  const wantsOut=G.officers.length<6 && copSees(c.x,c.y,c.layer,400) && ((G.wanted>=2 && d<330) || (G.wanted>=1 && footP && d<220));
+  const wantsOut=G.officers.length<6 && copSees(c.x,c.y,c.z,400) && ((G.wanted>=2 && d<330) || (G.wanted>=1 && footP && d<220));
   if(wantsOut){
     driveCar(c,dt,false,true,0,true);
     if(Math.abs(c.v)<40){
@@ -333,15 +334,15 @@ function aiCop(c,dt){
         const side=i?-1:1, ang=c.a+side*Math.PI/2;
         let x=c.x+Math.cos(ang)*(c.h/2+12), y=c.y+Math.sin(ang)*(c.h/2+12);
         if(hitSolid(x,y,8)||inWater(x,y)){ x=c.x-Math.cos(ang)*(c.h/2+12); y=c.y-Math.sin(ang)*(c.h/2+12); }
-        G.officers.push({x,y,a:ang,hp:60,car:c,cool:rand(0.6,1.2),walk:0,side:Math.random()<.5?1:-1,state:'out',dea:c.type==='dea'});
+        G.officers.push({x,y,z:c.z,a:ang,hp:60,car:c,cool:rand(0.6,1.2),walk:0,side:Math.random()<.5?1:-1,state:'out',dea:c.type==='dea'});
       }
       beep(520,0.08,'square',0.03);
     }
     return;
   }
   // --- objetivo: con visión directa, interceptar; si no, ruta por calles hasta la última posición conocida ---
-  const sees=copSees(c.x,c.y,c.layer,700) && (c.layer||0)===(P.layer||0) && clearLine(c.x,c.y,P.x,P.y);
-  if(sees) G.lastSeen={x:P.x,y:P.y,layer:P.layer||0};
+  const sees=copSees(c.x,c.y,c.z,700) && clearLine(c.x,c.y,P.x,P.y);
+  if(sees) G.lastSeen={x:P.x,y:P.y,z:P.z};
   if(c.lead===undefined) c.lead=rand(0.25,0.9);                 // cada patrulla anticipa distinto: se abren y flanquean
   let tx,ty;
   if(sees && d<450){
@@ -349,16 +350,16 @@ function aiCop(c,dt){
     tx=P.x+pv.vx*k; ty=P.y+pv.vy*k;                              // punto de intercepción
     c.route=null;
   } else {
-    const L=G.lastSeen||{x:P.x,y:P.y,layer:P.layer||0};
+    const L=G.lastSeen||{x:P.x,y:P.y,z:P.z};
     c.routeT=(c.routeT||0)-dt;
     if(!c.route||c.routeT<=0||dist(c.goalX||0,c.goalY||0,L.x,L.y)>150){
-      c.route=navRoute(c.x,c.y,c.layer||0,L.x,L.y,L.layer); c.ri=0; c.routeT=1.2; c.goalX=L.x; c.goalY=L.y; }
+      c.route=navRoute(c.x,c.y,c.z,L.x,L.y,L.z); c.ri=0; c.routeT=1.2; c.goalX=L.x; c.goalY=L.y; }
     // avanzar por la ruta (punto de mira ~90 por delante)
     while(c.ri<c.route.length-1 && dist(c.x,c.y,c.route[c.ri][0],c.route[c.ri][1])<90) c.ri++;
     [tx,ty]=c.route[c.ri];
     // llegó a donde te vio por última vez y no te ve: rastrea la zona
     if(!sees && dist(c.x,c.y,L.x,L.y)<120 && c.ri>=c.route.length-1){
-      const nr=navProject(L.x+rand(-500,500),L.y+rand(-500,500),0); G.lastSeen={x:nr.x,y:nr.y,layer:0}; }
+      const nr=navProject(L.x+rand(-500,500),L.y+rand(-500,500)); G.lastSeen={x:nr.x,y:nr.y,z:nr.z}; }
   }
   const ta=Math.atan2(ty-c.y,tx-c.x);
   if(c.rev>0){ c.rev-=dt; driveCar(c,dt,false,true,Math.sign(angDiff(c.a,ta))*-1,false); return; }

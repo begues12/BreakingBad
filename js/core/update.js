@@ -11,6 +11,7 @@ function update(dt){
   for(const f of G.floaters){ f.life-=dt; f.y-=30*dt; }
   G.floaters=G.floaters.filter(f=>f.life>0);
 
+  if(G.cine){ updateCine(dt); return; }
   if(G.dialog){
     const D=G.dialog, L=D.lines[D.i];
     if(L && !L.choices){ const prev=D.ch|0; D.ch=Math.min(L[1].length,D.ch+dt*55); if((D.ch|0)!==prev && (D.ch|0)%3===0) beep(220+Math.random()*80,0.02,'square',0.01); }
@@ -24,6 +25,7 @@ function update(dt){
     return;
   }
   if(G.cook){ updateCook(dt); return; }
+  if(G.inside){ G.clock=(G.clock+dt*2)%(24*60); updateInterior(dt); if(G.card) updateMissions(dt); return; }
   if(G.dead){ G.deadT-=dt; if(G.deadT<=0) respawn(); updateWorld(dt); return; }
 
   G.clock=(G.clock+dt*2)%(24*60);
@@ -33,23 +35,24 @@ function update(dt){
   updateGPS(dt);
   // --- jugador ---
   const car=P.inCar;
-  P.layer=car?car.layer||0:layerAt(P.x,P.y,P.layer);
+  if(car) P.z=car.z;
   if(car){
     driveCar(car,dt,keys['w']||keys['arrowup'],keys['s']||keys['arrowdown'],(keys['a']||keys['arrowleft']?-1:0)+(keys['d']||keys['arrowright']?1:0),keys[' ']);
     P.x=car.x; P.y=car.y; P.a=car.a;
     if(pressed['h']) beep(330,0.35,'sawtooth',0.05);
     if(car.dead){ P.inCar=null; }
     // atropellos
-    if(Math.abs(car.v)>90 && !car.layer) for(const p of G.peds) if(!p.dead && dist(p.x,p.y,car.x,car.y)<car.r+6){ killPed(p); sfx.crash(); runOver(); }
+    if(Math.abs(car.v)>90 && !onDeck(car)) for(const p of G.peds) if(!p.dead && dist(p.x,p.y,car.x,car.y)<car.r+6){ killPed(p); sfx.crash(); runOver(); }
     if(Math.abs(car.v)>90) for(const t of G.thugs) if(t.hp>0 && dist(t.x,t.y,car.x,car.y)<car.r+8){ t.hp=0; sfx.crash(); }
     if(Math.abs(car.v)>90) for(const o of G.officers) if(o.hp>0 && dist(o.x,o.y,car.x,car.y)<car.r+8){ o.hp=0; sfx.crash(); }
   } else {
     let mx=(keys['d']||keys['arrowright']?1:0)-(keys['a']||keys['arrowleft']?1:0);
     let my=(keys['s']||keys['arrowdown']?1:0)-(keys['w']||keys['arrowup']?1:0);
     const run=keys['shift']; const sp=run?190:115;
-    if(mx||my){ const l=Math.hypot(mx,my), dx=mx/l*sp*dt, dy=my/l*sp*dt, ly=P.layer||0;
-      // quitamiedos / pretiles de la autopista: se desliza por el eje que no choca
-      if(!hwyBlocked(P.x+dx,P.y,ly)) P.x+=dx; if(!hwyBlocked(P.x,P.y+dy,ly)) P.y+=dy;
+    if(mx||my){ const l=Math.hypot(mx,my), dx=mx/l*sp*dt, dy=my/l*sp*dt;
+      // solo se pasa a superficies a una altura parecida (pretiles, bordes de puente, agua): se desliza por el eje libre
+      let nz=standZ(P.x+dx,P.y,P.z); if(nz!==null){ P.x+=dx; P.z=nz; }
+      nz=standZ(P.x,P.y+dy,P.z); if(nz!==null){ P.y+=dy; P.z=nz; }
       P.walk+=dt*(run?14:9); }
     resolve(P,9);
     const wx=mouse.x/cam.z+cam.x, wy=mouse.y/cam.z+cam.y;
@@ -85,7 +88,7 @@ function update(dt){
   if(P.hp<=0 && !G.dead){ G.dead='wasted'; G.deadT=3.5; if(P.inCar){P.inCar=null;} sfx.boom(); }
 }
 
-function copNear(r){ return G.cars.some(c=>c.driver==='cop'&&copSees(c.x,c.y,c.layer,r)); }
+function copNear(r){ return G.cars.some(c=>c.driver==='cop'&&copSees(c.x,c.y,c.z,r)); }
 
 function nearMarker(){
   const P=G.player;

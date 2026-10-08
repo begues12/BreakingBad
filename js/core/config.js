@@ -1,14 +1,14 @@
 "use strict";
 // ======================= CONFIG / MUNDO =======================
-const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const cv = document.getElementById('c');
+let ctx = cv.getContext('2d');   // let: el render de baldosas lo cambia temporalmente
 let VW = 0, VH = 0;
 function resize(){ VW = cv.width = innerWidth; VH = cv.height = innerHeight; }
 addEventListener('resize', resize); resize();
 
-// El trazado se diseña en "unidades de diseño" y luego se escala por SC al mundo real
-const SC = 1.5;
+// El mundo sale de maps/abq.js (editable con tools/editor.html)
 const SIDEWALK = 24; // ancho de acera a cada lado de calles y avenidas
-const WW = 6400*SC, WH = 5600*SC;
+const WW = MAP.w, WH = MAP.h;
 
 function mulberry(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 const srand = mulberry(1987);

@@ -38,15 +38,12 @@ function killPed(p){
 }
 
 
-// ¿Puede un agente en (x,y,layer) ver al jugador? Si uno está sobre el puente
-// (tramo elevado) y el otro abajo, el tablero bloquea la visión.
-function copSees(x,y,layer,range){
+// ¿Puede un agente en (x,y,z) ver al jugador? Si uno está en un puente y el otro debajo,
+// el tablero bloquea la visión (diferencia de altura).
+function copSees(x,y,z,range){
   const P=G.player;
   if(dist(x,y,P.x,P.y)>=range) return false;
-  const pl=P.layer||0, cl=layer||0;
-  if(pl===cl) return true;
-  const [ex,ey]=pl?[P.x,P.y]:[x,y];   // quien está en la autopista
-  return hwyInfo(ex,ey).f<0.3;         // en rampas casi a ras de suelo sí se ven
+  return Math.abs((z===undefined?spawnZ(x,y):z)-(P.z||0))<3;
 }
 
 // Atropellos: uno suelto sin testigos solo da "calor"; la policía actúa si lo ve o si se repite.

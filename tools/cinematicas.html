@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visor de cinemáticas</title>
+<style>
+  :root{ --bg:#111214; --panel:#1d1f23; --line:#33363d; --text:#e6e6e6; --muted:#9aa0a8; --accent:#ffd23a; }
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px "Segoe UI",Arial,sans-serif;overflow:hidden}
+  #c{position:absolute;left:0;top:0;width:calc(100% - 260px);height:100%;display:block}
+  #side{position:absolute;right:0;top:0;bottom:0;width:260px;background:var(--panel);border-left:1px solid var(--line);overflow:auto;padding:10px;box-sizing:border-box}
+  h1{font-size:14px;color:var(--accent);margin:2px 0 8px}
+  .ep{margin:6px 0 2px;font-weight:700;color:var(--muted)}
+  button{display:block;width:100%;text-align:left;font:inherit;color:var(--text);background:#272a30;border:1px solid var(--line);border-radius:6px;padding:5px 8px;margin:3px 0;cursor:pointer}
+  button:hover{border-color:#5a6270} button.on{background:var(--accent);color:#111;border-color:var(--accent)}
+  .hint{color:var(--muted);font-size:12px;line-height:1.4}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="side"><h1>Cinemáticas</h1><p class="hint">Elige una escena. <b>Enter</b> avanza un plano, <b>Esc</b> la termina. Se repite al acabar.</p><div id="list"></div></div>
+<script src="../maps/abq.js"></script>
+<script src="../js/world/mapcodec.js"></script>
+<script>
+// el visor solo necesita el canvas: se sustituye el del juego por el de esta página
+document.getElementById('c').id='c';
+</script>
+<script src="../js/core/config.js"></script>
+<script>
+  // tamaño del canvas descontando el panel lateral
+  function resize(){ VW=cv.width=innerWidth-260; VH=cv.height=innerHeight; }
+  resize();
+</script>
+<script src="../js/core/input.js"></script>
+<script src="../js/systems/audio.js"></script>
+<script src="../js/game/dialogue.js"></script>
+<script src="../js/render/portraits.js"></script>
+<script src="../js/render/render.js"></script>
+<script src="../js/render/hud.js"></script>
+<script src="../js/cutscenes/shots.js"></script>
+<script src="../js/cutscenes/engine.js"></script>
+<script src="../js/cutscenes/t1.js"></script>
+<script src="../js/cutscenes/t2.js"></script>
+<script src="../js/cutscenes/t3.js"></script>
+<script src="../js/cutscenes/t4.js"></script>
+<script src="../js/cutscenes/t5.js"></script>
+<script>
+"use strict";
+// estado mínimo para las cinemáticas (el capítulo decide el aspecto de Walter)
+var G={mi:0,clock:12*60,cine:null};
+function heisLook(){ return G.mi>=ORDER.indexOf('2x01') && G.mi<ORDER.indexOf('5x15'); }
+const ORDER=Object.keys(CUTSCENES);
+let cur=null;
+function play(code,si){
+  cur={code,si}; G.mi=ORDER.indexOf(code);
+  for(const b of document.querySelectorAll('#list button')) b.classList.toggle('on',b.dataset.k===code+'/'+si);
+  playCutscene(CUTSCENES[code].slice(si,si+1),()=>play(code,si));
+}
+const list=document.getElementById('list');
+for(const code of ORDER){ const d=document.createElement('div'); d.className='ep'; d.textContent=code; list.appendChild(d);
+  CUTSCENES[code].forEach((sc,si)=>{ const b=document.createElement('button'); b.dataset.k=code+'/'+si; b.textContent=sc.title.replace(/^\S+ · /,''); b.onclick=()=>play(code,si); list.appendChild(b); }); }
+// parámetros: #cine=4x06&scene=1&shot=0&t=2 congela ese plano (para capturas)
+const q=new URLSearchParams(location.hash.slice(1));
+if(q.get('cine')){ play(q.get('cine'),+(q.get('scene')||0)); G.cine.shi=+(q.get('shot')||0); G.cine.t=+(q.get('t')||1.5); G.cine.hold=true; }
+else play(ORDER[0],0);
+let last=performance.now();
+function loop(now){ const dt=Math.min(0.05,(now-last)/1000); last=now;
+  if(G.cine){ updateCine(dt); if(G.cine) drawCine(now/1000); }
+  for(const k in pressed) delete pressed[k]; mouse.clicked=false; requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

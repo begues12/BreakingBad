@@ -14,7 +14,7 @@ function newGame(){
   G = {
     money:8000, product:0, purity:0, heat:0, wanted:0, evadeT:0, bustT:0,
     clock: 9*60, mi:0, step:-1, ms:{}, pickups:[], soldLbs:0, card:null, loyalty:0, rvId:null, sold:{}, kills:0,
-    player:{x:LOC.home.x, y:LOC.home.y-10, a:-Math.PI/2, hp:100, armor:0, gun:false, ammo:0, cool:0, inCar:null, walk:0},
+    player:{x:LOC.home.x, y:LOC.home.y-10, z:spawnZ(LOC.home.x,LOC.home.y-10), a:-Math.PI/2, hp:100, armor:0, gun:false, ammo:0, cool:0, inCar:null, walk:0},
     cars:[], peds:[], thugs:[], officers:[], bullets:[], decals:[], parts:[], floaters:[],
     nextId:1, dialog:null, cook:null, msg:null, msgT:0, ended:false, flash:0,
   };
@@ -22,7 +22,7 @@ function newGame(){
   for(let i=0;i<34;i++) spawnTraffic(true);
   for(let i=0;i<80;i++) spawnPed(true);
   for(let i=0;i<14;i++) spawnParked();
-  cam.x=G.player.x-VW/2; cam.y=G.player.y-VH/2;
+  cam.x=G.player.x-VW/2; cam.y=G.player.y-VH/2; G.tileWarm=true;
 }
 
 function spawnCar(type,x,y,a,extra){
@@ -30,6 +30,7 @@ function spawnCar(type,x,y,a,extra){
   const car = Object.assign({id:G.nextId++, type, x, y, a, v:0, w:T.w, h:T.h, r:T.r, max:T.max, acc:T.acc, turn:T.turn,
     hp:T.hp, maxhp:T.hp, mass:T.mass||1, gripMul:T.gripMul||1, vx:Math.cos(a)*((extra&&extra.v)||0), vy:Math.sin(a)*((extra&&extra.v)||0), av:0, color:T.color||CARCOLORS[(Math.random()*CARCOLORS.length)|0], driver:null,
     fire:0, siren:0, stuck:0, rev:0, dir:0, lastI:'', shootCd:1}, extra||{});
+  if(car.z===undefined) car.z=spawnZ(x,y);
   G.cars.push(car); return car;
 }
 // punto de calle aleatorio cerca del jugador (anillo rmin..rmax)
@@ -44,17 +45,17 @@ function roadPointNear(rmin,rmax,filter){
   }
   return null;
 }
-const SPEED_OF={hwy:330,main:200,street:140,dirt:110};
+const SPEED_OF={hwy:330,main:200,street:140,ramp:200,dirt:110,rail:1};
 function trafficPos(c){
   const r=ROADS[c.road], p=pointAt(r,c.s), ta=c.dir>0?p.a:p.a+Math.PI;
-  return {x:p.x+Math.cos(ta+Math.PI/2)*r.lane, y:p.y+Math.sin(ta+Math.PI/2)*r.lane, a:ta};
+  return {x:p.x+Math.cos(ta+Math.PI/2)*r.lane, y:p.y+Math.sin(ta+Math.PI/2)*r.lane, a:ta, z:p.z};
 }
 function spawnTraffic(anywhere){
   for(let tries=0;tries<10;tries++){
-    const nr=roadPointNear(anywhere?250:950,anywhere?1600:1500,r=>r.kind!=='dirt'); if(!nr) continue;
+    const nr=roadPointNear(anywhere?250:950,anywhere?1600:1500,r=>r.drive&&r.kind!=='dirt'); if(!nr) continue;
     const c={road:nr.r.idx,s:nr.s,dir:Math.random()<.5?1:-1}; const p=trafficPos(c);
     if(G.cars.some(o=>dist(o.x,o.y,p.x,p.y)<90)) continue;
-    return spawnCar('sedan',p.x,p.y,p.a,{driver:'ai',road:c.road,s:c.s,dir:c.dir,v:SPEED_OF[nr.r.kind]*0.7,layer:nr.r.kind==='hwy'?1:0});
+    return spawnCar('sedan',p.x,p.y,p.a,{driver:'ai',road:c.road,s:c.s,dir:c.dir,v:SPEED_OF[nr.r.kind]*0.7,z:p.z});
   }
 }
 function spawnParked(){

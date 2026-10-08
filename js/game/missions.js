@@ -32,7 +32,7 @@ function addMissions(list){ for(const m of list) MISSIONS.push(m); }
 function curMission(){ return MISSIONS[G.mi]; }
 function curStep(){ const M=curMission(); return M&&M.steps[G.step]; }
 // nivel de "Heisenberg" para el aspecto de Walter (cabeza rapada desde 1x06)
-function heisLook(){ return G.mi>=5; }
+function heisLook(){ return G.mi>=missionIdx('2x01') && G.mi<missionIdx('5x15'); }
 
 function startMission(i){
   G.mi=i; G.step=-1; G.ms={};
@@ -42,7 +42,8 @@ function startMission(i){
   sfx.star();
   if(M.start) M.start();
   const go=()=>nextStep();
-  if(M.intro) say(M.intro,go); else go();
+  const intro=()=>{ if(M.intro) say(M.intro,go); else go(); };
+  const cs=CUTSCENES[M.code]; if(cs) playCutscene(cs.slice(0,M.cineStart||1),intro); else intro();
 }
 function nextStep(){
   G.step++; G.ms={t:0};
@@ -67,7 +68,8 @@ function completeMission(){
   G.done=(G.done||0)+1;
   G.card={t:0,code:M.code,title:M.title,season:M.season,complete:true,reward:M.reward};
   const go=()=>startMission(G.mi+1);
-  if(M.outro) say(M.outro,()=>{ G.cardWait=go; }); else G.cardWait=go;
+  const outro=()=>{ if(M.outro) say(M.outro,()=>{ G.cardWait=go; }); else G.cardWait=go; };
+  const cs=CUTSCENES[M.code], n0=M.cineStart||1; if(cs&&cs.length>n0){ G.card=null; playCutscene(cs.slice(n0),()=>{ G.card={t:0,code:M.code,title:M.title,season:M.season,complete:true,reward:M.reward}; outro(); }); } else outro();
 }
 function clearMissionActors(){
   G.thugs=G.thugs.filter(t=>!t.mission);
@@ -87,7 +89,7 @@ function spawnEnemies(n,x,y,opt){
   for(let i=0;i<n;i++){
     let px=x,py=y;
     for(let t=0;t<40;t++){ px=x+rand(-320,320); py=y+rand(-320,320); if(!hitSolid(px,py,12)&&!inWater(px,py)&&dist(px,py,G.player.x,G.player.y)>220) break; }
-    G.thugs.push({x:px,y:py,a:0,hp:opt.hp||60,cool:rand(1,2),col:opt.col||'#222',walk:0,mission:true});
+    G.thugs.push({x:px,y:py,z:spawnZ(px,py),a:0,hp:opt.hp||60,cool:rand(1,2),col:opt.col||'#222',walk:0,mission:true});
   }
 }
 
@@ -113,7 +115,7 @@ const STEP_TYPES={
     info(S){ return G.ms.spawned?'Enemigos: '+G.thugs.filter(t=>t.mission).length:null; } },
   chase:{ start(S,ms){
       const L=S.at?locOf(S.at):null, P=G.player;
-      let x=L?L.x:P.x+300, y=L?L.y:P.y; const nr=nearestRoad(x,y,r=>r.kind!=='hwy');
+      let x=L?L.x:P.x+300, y=L?L.y:P.y; const nr=nearestRoad(x,y,r=>r.drive&&r.kind!=='hwy');
       const c=spawnCar(S.car||'sedan',nr.x,nr.y,nr.a,{driver:'flee',mission:true,name:S.name});
       c.hp=c.maxhp=S.hp||c.maxhp; ms.car=c.id; },
     update(S,ms){ const c=G.cars.find(c=>c.id===ms.car);
@@ -178,7 +180,7 @@ function aiFlee(c,dt){
     // escoge un punto lejos del jugador
     let bx=c.x,by=c.y,bd=-1;
     for(let i=0;i<6;i++){ const x=c.x+rand(-1500,1500), y=c.y+rand(-1500,1500); const s=dist(x,y,P.x,P.y); if(x>200&&y>200&&x<WW-200&&y<WH-200&&s>bd){ bd=s; bx=x; by=y; } }
-    c.route=navRoute(c.x,c.y,c.layer||0,bx,by,0); c.ri=0; c.fleeT=4; }
+    c.route=navRoute(c.x,c.y,c.z,bx,by); c.ri=0; c.fleeT=4; }
   while(c.ri<c.route.length-1 && dist(c.x,c.y,c.route[c.ri][0],c.route[c.ri][1])<80) c.ri++;
   const [tx,ty]=c.route[c.ri], ta=Math.atan2(ty-c.y,tx-c.x), diff=angDiff(c.a,ta);
   if(c.rev>0){ c.rev-=dt; driveCar(c,dt,false,true,-Math.sign(diff),false); return; }

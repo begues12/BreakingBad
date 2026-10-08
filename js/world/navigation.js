@@ -8,6 +8,7 @@ const NAV = (function(){
   const node=(key,x,y)=>{ if(byKey.has(key)) return byKey.get(key); const n={id:nodes.length,x,y,edges:[]}; nodes.push(n); byKey.set(key,n); return n; };
   const stops=new Map(); // carretera -> [{s,node}] ordenado por s
   for(const r of ROADS){
+    if(!r.drive) continue;
     const L=[];
     const a=pointAt(r,0), b=pointAt(r,r.len);
     L.push({s:0,node:node('e'+r.idx+'a',a.x,a.y)}, {s:r.len,node:node('e'+r.idx+'b',b.x,b.y)});
@@ -21,10 +22,8 @@ const NAV = (function(){
   return {nodes,stops};
 })();
 
-// posición en la red: carretera más cercana compatible con el nivel (1 = solo autopista)
-function navProject(x,y,layer){
-  return nearestRoad(x,y,layer===1?(r=>r.kind==='hwy'):(r=>r.kind!=='hwy'||hwyInfo(x,y).on));
-}
+// posición en la red: carretera transitable más cercana a esa altura
+function navProject(x,y,z){ return nearestRoad(x,y,r=>r.drive,z===undefined?undefined:z); }
 
 // Ruta de (x0,y0) a (x1,y1) como lista de puntos muestreados a lo largo de las calles.
 function navRoute(x0,y0,l0,x1,y1,l1){

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor de mapa</title>
+<style>
+  :root{ --bg:#16181c; --panel:#22252b; --line:#353a42; --text:#e6e6e6; --muted:#9aa0a8; --accent:#ffd23a; }
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px "Segoe UI",Arial,sans-serif;overflow:hidden}
+  #cv{position:absolute;left:0;top:0;width:calc(100% - 280px);height:100%;display:block;cursor:crosshair}
+  #side{position:absolute;right:0;top:0;bottom:0;width:280px;background:var(--panel);border-left:1px solid var(--line);overflow:auto;padding:12px;box-sizing:border-box}
+  h1{font-size:15px;margin:0 0 10px;color:var(--accent)}
+  h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:16px 0 6px}
+  .tools{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  button,select,input{font:inherit;color:var(--text);background:#2c3038;border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+  button{cursor:pointer} button:hover{border-color:#5a6270}
+  button.on{background:var(--accent);color:#111;border-color:var(--accent);font-weight:600}
+  label{display:block;margin:6px 0 2px;color:var(--muted)}
+  input,select{width:100%;box-sizing:border-box}
+  .row{display:flex;gap:6px} .row>*{flex:1}
+  .swatches{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+  .sw{display:flex;align-items:center;gap:6px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;cursor:pointer;font-size:12px}
+  .sw i{width:14px;height:14px;border-radius:3px;flex:none}
+  .sw.on{outline:2px solid var(--accent)}
+  .hint{color:var(--muted);font-size:12px;line-height:1.45}
+  kbd{background:#333842;border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:11px}
+  #status{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.65);padding:4px 8px;border-radius:6px;font-size:12px;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="status"></div>
+<div id="side">
+  <h1>Editor de mapa — Albuquerque</h1>
+  <div class="tools" id="tools">
+    <button data-t="select">Carreteras</button>
+    <button data-t="newroad">Nueva carretera</button>
+    <button data-t="biome">Pintar bioma</button>
+    <button data-t="height">Altura</button>
+    <button data-t="places">Lugares</button>
+  </div>
+
+  <div id="p-select">
+    <h2>Carretera seleccionada</h2>
+    <div id="roadPanel" class="hint">Haz clic en una carretera para seleccionarla.</div>
+  </div>
+  <div id="p-newroad" hidden>
+    <h2>Nueva carretera</h2>
+    <label>Tipo</label>
+    <select id="newKind"><option value="street">Calle</option><option value="main">Avenida</option><option value="hwy">Autopista</option><option value="ramp">Rampa</option><option value="dirt">Tierra</option><option value="rail">Vía de tren</option></select>
+    <label>Altura de los puntos (vacío = siguen el terreno)</label>
+    <input id="newZ" type="number" step="0.5" placeholder="suelo">
+    <p class="hint">Clic para añadir puntos. <kbd>Enter</kbd> termina, <kbd>Esc</kbd> cancela.</p>
+  </div>
+  <div id="p-biome" hidden>
+    <h2>Bioma</h2>
+    <div class="swatches" id="swatches"></div>
+    <label>Tamaño del pincel: <span id="bsv"></span></label>
+    <input id="bsize" type="range" min="16" max="1200" step="16" value="240">
+  </div>
+  <div id="p-height" hidden>
+    <h2>Altura del terreno</h2>
+    <div class="row"><button data-hm="raise" class="on">Subir</button><button data-hm="lower">Bajar</button><button data-hm="flat">Fijar</button></div>
+    <label>Valor para "Fijar"</label><input id="hval" type="number" value="0" step="0.5">
+    <label>Tamaño del pincel: <span id="hsv"></span></label>
+    <input id="hsize" type="range" min="64" max="2400" step="32" value="480">
+    <label>Fuerza</label><input id="hstr" type="range" min="0.1" max="3" step="0.1" value="1">
+  </div>
+  <div id="p-places" hidden>
+    <h2>Lugares</h2>
+    <p class="hint">Arrastra un lugar para moverlo. El juego lo coloca junto a la calle más cercana.</p>
+    <div id="placeInfo" class="hint"></div>
+  </div>
+
+  <h2>Vista</h2>
+  <div class="row"><button id="vShade" class="on">Relieve</button><button id="vLevels" class="on">Alturas</button><button id="vNames" class="on">Nombres</button></div>
+  <h2>Archivo</h2>
+  <button id="save" style="width:100%">Descargar maps/abq.js</button>
+  <p class="hint">Guarda el archivo descargado en <b>maps/abq.js</b> y recarga el juego.<br><br>
+  <kbd>Rueda</kbd> zoom · <kbd>Clic der.</kbd> o <kbd>Espacio</kbd>+arrastrar: mover · <kbd>Supr</kbd> borrar punto/carretera · doble clic sobre un tramo: insertar punto · <kbd>Ctrl+Z</kbd> deshacer</p>
+</div>
+
+<script src="../maps/abq.js"></script>
+<script src="../js/world/mapcodec.js"></script>
+<script>
+"use strict";
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+let L=decodeMap(MAP);
+const KCOL={hwy:'#e8b23a',main:'#f2f2f2',street:'#c8c8c8',ramp:'#f0a040',dirt:'#a4825a',rail:'#5a4a3a'};
+const KW={hwy:180,main:130,street:90,ramp:110,dirt:80,rail:40};
+let view={x:MAP.w/2,y:MAP.h/2,z:Math.min((innerWidth-280)/MAP.w,innerHeight/MAP.h)*0.95};
+let tool='select', sel=null, selPt=-1, drag=null, building=null, hmode='raise', show={shade:true,levels:true,names:true};
+const undo=[];
+function snapshot(){ undo.push(JSON.stringify({roads:MAP.roads,places:MAP.places})); if(undo.length>60) undo.shift(); }
+
+// ---------- capa de bioma/relieve pre-renderizada ----------
+const bioCv=document.createElement('canvas'); bioCv.width=MAP.biome.cols; bioCv.height=MAP.biome.rows;
+const bctx=bioCv.getContext('2d'); let bimg=bctx.createImageData(bioCv.width,bioCv.height);
+function paintBiomeCells(i0,j0,i1,j1){
+  const B=MAP.biome;
+  i0=Math.max(0,i0); j0=Math.max(0,j0); i1=Math.min(B.cols-1,i1); j1=Math.min(B.rows-1,j1);
+  for(let j=j0;j<=j1;j++) for(let i=i0;i<=i1;i++){
+    const b=BIOMES[L.biome[j*B.cols+i]]||BIOMES[0], x=(i+.5)*B.cell, y=(j+.5)*B.cell;
+    let k=1;
+    if(show.shade&&!b.water){ const h0=mapHeight(MAP,L,x,y), hx=mapHeight(MAP,L,x+48,y), hy=mapHeight(MAP,L,x,y+48); k=Math.max(0.55,Math.min(1.35,1+((h0-hx)+(h0-hy))*0.06)); }
+    const o=(j*B.cols+i)*4; bimg.data[o]=b.col[0]*k; bimg.data[o+1]=b.col[1]*k; bimg.data[o+2]=b.col[2]*k; bimg.data[o+3]=255;
+  }
+  bctx.putImageData(bimg,0,0);
+}
+paintBiomeCells(0,0,MAP.biome.cols,MAP.biome.rows);
+
+// ---------- utilidades ----------
+const W2S=(x,y)=>[(x-view.x)*view.z+cv.width/2,(y-view.y)*view.z+cv.height/2];
+const S2W=(x,y)=>[(x-cv.width/2)/view.z+view.x,(y-cv.height/2)/view.z+view.y];
+function segD(px,py,a,b){ const dx=b[0]-a[0],dy=b[1]-a[1],l=dx*dx+dy*dy; let t=l?((px-a[0])*dx+(py-a[1])*dy)/l:0; t=Math.max(0,Math.min(1,t)); return [Math.hypot(px-a[0]-dx*t,py-a[1]-dy*t),t]; }
+function zOf(p){ return p[2]!==undefined&&p[2]!==null ? p[2] : mapHeight(MAP,L,p[0],p[1]); }
+function pickRoad(x,y){ let best=null,bd=40/view.z+20,bi=-1; for(const r of MAP.roads) for(let i=0;i<r.pts.length-1;i++){ const [d]=segD(x,y,r.pts[i],r.pts[i+1]); if(d<bd){bd=d;best=r;bi=i;} } return best?{r:best,i:bi}:null; }
+function pickPoint(r,x,y){ let bi=-1,bd=12/view.z; r.pts.forEach((p,i)=>{ const d=Math.hypot(p[0]-x,p[1]-y); if(d<bd){bd=d;bi=i;} }); return bi; }
+
+// ---------- dibujo ----------
+function draw(){
+  cv.width=cv.clientWidth; cv.height=cv.clientHeight;
+  ctx.fillStyle='#1d4a66'; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.save(); ctx.translate(cv.width/2,cv.height/2); ctx.scale(view.z,view.z); ctx.translate(-view.x,-view.y);
+  ctx.imageSmoothingEnabled=view.z<0.5; ctx.drawImage(bioCv,0,0,MAP.w,MAP.h);
+  ctx.lineCap='round'; ctx.lineJoin='round';
+  for(const r of MAP.roads){
+    ctx.strokeStyle=r===sel?'#4fc3ff':KCOL[r.kind]||'#fff'; ctx.lineWidth=Math.max(KW[r.kind]||80,2/view.z)*(r===sel?1.15:1);
+    if(r.kind==='rail') ctx.setLineDash([60,40]);
+    ctx.beginPath(); r.pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.stroke(); ctx.setLineDash([]);
+  }
+  // tramos elevados (puentes) en naranja/rojo según la altura sobre el terreno
+  if(show.levels) for(const r of MAP.roads) for(let i=0;i<r.pts.length-1;i++){
+    const a=r.pts[i], b=r.pts[i+1], ha=zOf(a)-mapHeight(MAP,L,a[0],a[1]), hb=zOf(b)-mapHeight(MAP,L,b[0],b[1]), h=(ha+hb)/2;
+    if(h<1.5) continue; ctx.strokeStyle=`rgba(255,${Math.max(40,200-h*16)},40,.9)`; ctx.lineWidth=Math.max((KW[r.kind]||80)*0.35,2/view.z);
+    ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); }
+  // puntos de la carretera seleccionada
+  if(sel){ for(let i=0;i<sel.pts.length;i++){ const p=sel.pts[i]; ctx.fillStyle=i===selPt?'#ff4fa0':(p[2]!==undefined?'#ff9a2a':'#fff'); ctx.beginPath(); ctx.arc(p[0],p[1],(i===selPt?7:4.5)/view.z,0,7); ctx.fill(); } }
+  if(building){ ctx.strokeStyle='#4fc3ff'; ctx.lineWidth=3/view.z; ctx.setLineDash([10/view.z,8/view.z]); ctx.beginPath(); building.pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); if(mouseW) ctx.lineTo(mouseW[0],mouseW[1]); ctx.stroke(); ctx.setLineDash([]); }
+  // lugares
+  const all=Object.entries(MAP.places).concat([['cook',Object.assign({name:'Cocina (desierto)'},MAP.cook)]]).concat(MAP.dealers.map((d,i)=>['dealer'+i,{x:d[0],y:d[1],name:d[2]}]));
+  for(const [k,p] of all){ ctx.fillStyle=k==='cook'?'#3cf':k.startsWith('dealer')?'#39f':'#ffd23a'; ctx.strokeStyle='#000'; ctx.lineWidth=2/view.z; ctx.beginPath(); ctx.arc(p.x,p.y,8/view.z,0,7); ctx.fill(); ctx.stroke();
+    if(show.names){ ctx.font=`bold ${12/view.z}px Segoe UI`; ctx.fillStyle='#000'; ctx.fillText(p.name,p.x+11/view.z,p.y+5/view.z+1/view.z); ctx.fillStyle='#fff'; ctx.fillText(p.name,p.x+10/view.z,p.y+4/view.z); } }
+  // pincel
+  if(mouseW&&(tool==='biome'||tool==='height')){ const r=tool==='biome'?+bsize.value/2:+hsize.value/2; ctx.strokeStyle='#fff'; ctx.lineWidth=1.5/view.z; ctx.beginPath(); ctx.arc(mouseW[0],mouseW[1],r,0,7); ctx.stroke(); }
+  ctx.restore();
+  if(mouseW){ const b=BIOMES[mapBiome(MAP,L,mouseW[0],mouseW[1])]; status.textContent=`x ${mouseW[0]|0}  y ${mouseW[1]|0}  ·  ${b?b.name:''}  ·  altura ${mapHeight(MAP,L,mouseW[0],mouseW[1]).toFixed(1)}`; }
+}
+let dirty=true; (function loop(){ if(dirty){ draw(); dirty=false; } requestAnimationFrame(loop); })();
+addEventListener('resize',()=>dirty=true);
+
+// ---------- panel de carretera ----------
+function roadPanel(){
+  const el=document.getElementById('roadPanel');
+  if(!sel){ el.innerHTML='Haz clic en una carretera para seleccionarla.'; return; }
+  const p=sel.pts[selPt];
+  el.innerHTML=`<label>Nombre</label><input id="rName" value="${sel.name.replace(/"/g,'&quot;')}">
+    <label>Tipo</label><select id="rKind">${Object.keys(KW).map(k=>`<option ${k===sel.kind?'selected':''}>${k}</option>`).join('')}</select>
+    <p class="hint">${sel.pts.length} puntos. ${p?`Punto ${selPt}:`:'Selecciona un punto para editar su altura.'}</p>
+    ${p?`<label>Altura del punto (vacío = terreno ${mapHeight(MAP,L,p[0],p[1]).toFixed(1)})</label><input id="pZ" type="number" step="0.5" value="${p[2]??''}">
+    <div class="row" style="margin-top:6px"><button id="zRange">Aplicar a los siguientes 10</button></div>`:''}
+    <div class="row" style="margin-top:8px"><button id="rDel">Borrar carretera</button></div>`;
+  rName.oninput=()=>{ sel.name=rName.value; };
+  rKind.onchange=()=>{ snapshot(); sel.kind=rKind.value; dirty=true; };
+  rDel.onclick=()=>{ snapshot(); MAP.roads.splice(MAP.roads.indexOf(sel),1); sel=null; roadPanel(); dirty=true; };
+  if(p){ pZ.onchange=()=>{ snapshot(); if(pZ.value==='') delete p[2]; else p[2]=+pZ.value; dirty=true; };
+    zRange.onclick=()=>{ snapshot(); for(let i=selPt;i<Math.min(sel.pts.length,selPt+11);i++){ if(pZ.value==='') delete sel.pts[i][2]; else sel.pts[i][2]=+pZ.value; } dirty=true; }; }
+}
+
+// ---------- herramientas ----------
+for(const b of document.querySelectorAll('#tools button')) b.onclick=()=>setTool(b.dataset.t);
+function setTool(t){ tool=t; building=null; for(const b of document.querySelectorAll('#tools button')) b.classList.toggle('on',b.dataset.t===t);
+  for(const p of ['select','newroad','biome','height','places']) document.getElementById('p-'+p).hidden=p!==t; dirty=true; }
+setTool('select');
+let curBiome=7;
+const sw=document.getElementById('swatches');
+for(const b of BIOMES){ const d=document.createElement('div'); d.className='sw'; d.innerHTML=`<i style="background:rgb(${b.col})"></i>${b.name}`; d.onclick=()=>{ curBiome=b.id; for(const x of sw.children) x.classList.remove('on'); d.classList.add('on'); }; sw.appendChild(d); if(b.id===curBiome) d.classList.add('on'); }
+for(const b of document.querySelectorAll('[data-hm]')) b.onclick=()=>{ hmode=b.dataset.hm; for(const x of document.querySelectorAll('[data-hm]')) x.classList.toggle('on',x===b); };
+const bsv=document.getElementById('bsv'), hsv=document.getElementById('hsv');
+bsize.oninput=()=>bsv.textContent=bsize.value; hsize.oninput=()=>hsv.textContent=hsize.value; bsize.oninput(); hsize.oninput();
+for(const [id,key] of [['vShade','shade'],['vLevels','levels'],['vNames','names']]) document.getElementById(id).onclick=e=>{ show[key]=!show[key]; e.target.classList.toggle('on',show[key]); if(key==='shade') paintBiomeCells(0,0,1e9,1e9); dirty=true; };
+
+function paintBiome(x,y){
+  const B=MAP.biome, r=+bsize.value/2, i0=Math.floor((x-r)/B.cell), i1=Math.floor((x+r)/B.cell), j0=Math.floor((y-r)/B.cell), j1=Math.floor((y+r)/B.cell);
+  for(let j=Math.max(0,j0);j<=Math.min(B.rows-1,j1);j++) for(let i=Math.max(0,i0);i<=Math.min(B.cols-1,i1);i++)
+    if(Math.hypot((i+.5)*B.cell-x,(j+.5)*B.cell-y)<=r) L.biome[j*B.cols+i]=curBiome;
+  paintBiomeCells(i0,j0,i1,j1);
+}
+function paintHeight(x,y){
+  const H=MAP.height, r=+hsize.value/2, s=+hstr.value;
+  for(let j=Math.max(0,Math.floor((y-r)/H.cell));j<=Math.min(H.rows-1,Math.floor((y+r)/H.cell));j++)
+  for(let i=Math.max(0,Math.floor((x-r)/H.cell));i<=Math.min(H.cols-1,Math.floor((x+r)/H.cell));i++){
+    const d=Math.hypot((i+.5)*H.cell-x,(j+.5)*H.cell-y); if(d>r) continue; const f=1-d/r, k=j*H.cols+i;
+    const target=(+hval.value-H.offset)/H.scale;
+    let v=L.height[k];
+    if(hmode==='raise') v+=s*f*4; else if(hmode==='lower') v-=s*f*4; else v+=(target-v)*Math.min(1,s*f*0.5);
+    L.height[k]=Math.max(0,Math.min(255,Math.round(v)));
+  }
+  const B=MAP.biome; paintBiomeCells(Math.floor((x-r)/B.cell)-4,Math.floor((y-r)/B.cell)-4,Math.floor((x+r)/B.cell)+4,Math.floor((y+r)/B.cell)+4);
+}
+function placeAt(x,y){ let best=null,bd=20/view.z;
+  for(const [k,p] of Object.entries(MAP.places)){ const d=Math.hypot(p.x-x,p.y-y); if(d<bd){bd=d;best=p;} }
+  { const d=Math.hypot(MAP.cook.x-x,MAP.cook.y-y); if(d<bd){bd=d;best=MAP.cook;} }
+  MAP.dealers.forEach(dl=>{ const d=Math.hypot(dl[0]-x,dl[1]-y); if(d<bd){bd=d;best={dealer:dl};} });
+  return best; }
+
+// ---------- ratón ----------
+let mouseW=null, pan=null, space=false, painting=false;
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+cv.addEventListener('wheel',e=>{ e.preventDefault(); const [wx,wy]=S2W(e.offsetX,e.offsetY); view.z*=Math.exp(-e.deltaY*0.0012); view.z=Math.max(0.02,Math.min(4,view.z)); const [nx,ny]=S2W(e.offsetX,e.offsetY); view.x+=wx-nx; view.y+=wy-ny; dirty=true; },{passive:false});
+cv.addEventListener('mousedown',e=>{
+  const [x,y]=S2W(e.offsetX,e.offsetY);
+  if(e.button===2||e.button===1||space){ pan={sx:e.offsetX,sy:e.offsetY,vx:view.x,vy:view.y}; return; }
+  if(tool==='select'){
+    if(sel){ const i=pickPoint(sel,x,y); if(i>=0){ selPt=i; snapshot(); drag={pt:sel.pts[i]}; roadPanel(); dirty=true; return; } }
+    const h=pickRoad(x,y); sel=h?h.r:null; selPt=-1; roadPanel(); dirty=true;
+  } else if(tool==='newroad'){
+    if(!building) building={id:Math.max(0,...MAP.roads.map(r=>r.id))+1,name:'Nueva carretera',kind:newKind.value,pts:[]};
+    const p=[Math.round(x),Math.round(y)]; if(newZ.value!=='') p.push(+newZ.value); building.pts.push(p); dirty=true;
+  } else if(tool==='biome'){ painting=true; paintBiome(x,y); dirty=true; }
+  else if(tool==='height'){ painting=true; paintHeight(x,y); dirty=true; }
+  else if(tool==='places'){ const p=placeAt(x,y); if(p){ snapshot(); drag={place:p}; placeInfo.textContent=p.name||'Camello'; } }
+});
+cv.addEventListener('dblclick',e=>{ if(tool!=='select'||!sel) return; const [x,y]=S2W(e.offsetX,e.offsetY);
+  for(let i=0;i<sel.pts.length-1;i++){ const [d,t]=segD(x,y,sel.pts[i],sel.pts[i+1]); if(d<30/view.z+10){ snapshot(); const a=sel.pts[i],b=sel.pts[i+1], p=[Math.round(a[0]+(b[0]-a[0])*t),Math.round(a[1]+(b[1]-a[1])*t)];
+    if(a[2]!==undefined&&b[2]!==undefined) p.push(+(a[2]+(b[2]-a[2])*t).toFixed(2)); sel.pts.splice(i+1,0,p); selPt=i+1; roadPanel(); dirty=true; return; } } });
+addEventListener('mousemove',e=>{
+  if(e.target!==cv&&!drag&&!pan&&!painting) return;
+  const r=cv.getBoundingClientRect(), ox=e.clientX-r.left, oy=e.clientY-r.top; mouseW=S2W(ox,oy); dirty=true;
+  if(pan){ view.x=pan.vx-(ox-pan.sx)/view.z; view.y=pan.vy-(oy-pan.sy)/view.z; return; }
+  if(drag&&drag.pt){ drag.pt[0]=Math.round(mouseW[0]); drag.pt[1]=Math.round(mouseW[1]); }
+  if(drag&&drag.place){ const p=drag.place; if(p.dealer){ p.dealer[0]=Math.round(mouseW[0]); p.dealer[1]=Math.round(mouseW[1]); } else { p.x=Math.round(mouseW[0]); p.y=Math.round(mouseW[1]); } }
+  if(painting&&tool==='biome') paintBiome(mouseW[0],mouseW[1]);
+  if(painting&&tool==='height') paintHeight(mouseW[0],mouseW[1]);
+});
+addEventListener('mouseup',()=>{ if(drag&&drag.pt) roadPanel(); pan=null; drag=null; painting=false; });
+addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT') return;
+  if(e.key===' '){ space=true; e.preventDefault(); }
+  if(e.key==='Enter'&&building){ if(building.pts.length>1){ snapshot(); MAP.roads.push(building); sel=building; setTool('select'); roadPanel(); } building=null; dirty=true; }
+  if(e.key==='Escape'){ building=null; dirty=true; }
+  if((e.key==='Delete'||e.key==='Backspace')&&sel){ snapshot(); if(selPt>=0&&sel.pts.length>2){ sel.pts.splice(selPt,1); selPt=-1; } else { MAP.roads.splice(MAP.roads.indexOf(sel),1); sel=null; } roadPanel(); dirty=true; }
+  if(e.key==='z'&&(e.ctrlKey||e.metaKey)&&undo.length){ const s=JSON.parse(undo.pop()); MAP.roads=s.roads; MAP.places=s.places; sel=null; roadPanel(); dirty=true; }
+});
+addEventListener('keyup',e=>{ if(e.key===' ') space=false; });
+
+// ---------- exportar ----------
+document.getElementById('save').onclick=()=>{
+  const out=encodeMap(MAP,L);
+  const blob=new Blob(['// Mapa generado por tools/generate-map.js y editable con tools/editor.html\n"use strict";\nconst MAP = '+JSON.stringify(out)+';\n'],{type:'text/javascript'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='abq.js'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+};
+</script>
+</body>
+</html>

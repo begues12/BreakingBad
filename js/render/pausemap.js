@@ -6,7 +6,7 @@
 const PMAP={z:1,cx:null,cy:null,drag:null};
 
 function setWaypoint(x,y){
-  const nr=nearestRoad(x,y,r=>r.kind!=='hwy');
+  const nr=nearestRoad(x,y,r=>r.drive&&r.kind!=='hwy');
   G.waypoint={x:nr.x,y:nr.y}; G.gps=null; G.gpsT=0;
   beep(880,0.06,'square',0.03);
 }
@@ -15,7 +15,7 @@ function updateGPS(dt){
   const W=G.waypoint, P=G.player; if(!W) return;
   if(dist(P.x,P.y,W.x,W.y)<90){ G.waypoint=null; G.gps=null; toast('Has llegado a tu destino',2); return; }
   G.gpsT=(G.gpsT||0)-dt;
-  if(!G.gps||G.gpsT<=0){ G.gps=navRoute(P.x,P.y,P.layer||0,W.x,W.y,0); G.gpsT=1; }
+  if(!G.gps||G.gpsT<=0){ G.gps=navRoute(P.x,P.y,P.z,W.x,W.y); G.gpsT=1; }
 }
 function gpsPath(scale){
   const p=new Path2D(), P=G.player; p.moveTo(P.x*scale,P.y*scale);

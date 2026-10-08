@@ -12,6 +12,8 @@ function intro(){ startMission(0); }
 
 function interact(key){
   const P=G.player;
+  // lugares con interior: se entra andando y lo que toque de la misión ocurre dentro
+  if(INTERIORS[key] && !G.inside && !P.inCar && enterInterior(key)){ missionInteract(key); return true; }
   if(missionInteract(key)) return true;
   // cocina libre
   const cookSpot = key==='desert' || (key==='lavanderia'&&labOpen()) || (key==='vamonos'&&tentsOpen());

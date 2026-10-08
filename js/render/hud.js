@@ -7,9 +7,9 @@ function buildMini(){
   const m=mini.getContext('2d');
   m.drawImage(groundCanvas,0,0,mini.width,mini.height);
   m.save(); m.scale(S,S); m.lineJoin='round'; m.lineCap='round';
-  m.strokeStyle='#3f7d95'; m.lineWidth=RIVER_W*1.3; const rp=new Path2D(); RIVER.forEach((p,i)=>i?rp.lineTo(p[0],p[1]):rp.moveTo(p[0],p[1])); m.stroke(rp);
   m.fillStyle='rgba(90,75,60,.55)'; for(const s of solids) if(s.kind==='bld'||s.kind==='special'||s.kind==='mesa') m.fillRect(s.x,s.y,s.w,s.h);
-  for(const r of ROADS){ m.strokeStyle=r.kind==='hwy'?'#e8c45a':r.kind==='main'?'#f2f2f2':r.kind==='dirt'?'#9a7a50':'#cfcfcf'; m.lineWidth=r.kind==='hwy'?150:r.kind==='main'?110:70; m.stroke(r.path); }
+  for(const r of ROADS){ if(r.kind==='rail'){ m.setLineDash([60,40]); m.strokeStyle='#5a4a3a'; m.lineWidth=50; m.stroke(r.path); m.setLineDash([]); continue; }
+    m.strokeStyle=r.kind==='hwy'?'#e8c45a':r.kind==='main'||r.kind==='ramp'?'#f2f2f2':r.kind==='dirt'?'#9a7a50':'#cfcfcf'; m.lineWidth=r.kind==='hwy'?150:r.kind==='main'?110:70; m.stroke(r.path); }
   m.restore();
   mini.S=S;
 }
@@ -54,6 +54,7 @@ function drawHUD(t){
   drawMissionCard();
 
   // minimapa
+  if(G.inside){ if(G.msgT>0){ ctx.globalAlpha=clamp(G.msgT,0,1); ctx.font='bold 20px sans-serif'; const w=ctx.measureText(G.msg).width+40; ctx.fillStyle='rgba(0,0,0,.75)'; ctx.fillRect(VW/2-w/2,90,w,42); txt(G.msg,VW/2,118,20,'#ffd23a','center'); ctx.globalAlpha=1; } if(G.cook) drawCook(t); if(G.dialog) drawDialog(t); return; }
   if(!mini) buildMini();
   const MS=200, mx=20, my=VH-MS-20, S2=mini.S;
   ctx.save(); ctx.beginPath(); ctx.arc(mx+MS/2,my+MS/2,MS/2,0,7); ctx.clip();

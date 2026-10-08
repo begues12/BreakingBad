@@ -4,7 +4,7 @@ function save(){
   try{
     const P=G.player, rv=G.cars.find(c=>c.id===G.rvId);
     localStorage.setItem('heisenberg_save',JSON.stringify({money:G.money,product:G.product,purity:G.purity,heat:G.heat,clock:G.clock,mi:G.mi,step:G.step,soldLbs:G.soldLbs,loyalty:G.loyalty,
-      gun:P.gun,ammo:P.ammo,armor:P.armor,px:P.x,py:P.y,hasRv:!!G.rvId,rvx:rv?rv.x:0,rvy:rv?rv.y:0,ended:G.ended}));
+      gun:P.gun,ammo:P.ammo,armor:P.armor,px:G.inside?G.inside.wx:P.x,py:G.inside?G.inside.wy:P.y,hasRv:!!G.rvId,rvx:rv?rv.x:0,rvy:rv?rv.y:0,ended:G.ended}));
   }catch(e){}
 }
 function hasSave(){ try{ return !!localStorage.getItem('heisenberg_save'); }catch(e){ return false; } }

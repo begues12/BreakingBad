@@ -73,15 +73,28 @@ function eyeShape(x,y,L,t,id){
   if(L.wrinkles||id==='J'){ ctx.beginPath(); ctx.moveTo(x-4,y+2.6); ctx.quadraticCurveTo(x,y+4.4,x+4,y+2.6); ctx.stroke(); }
 }
 
+// Walter cambia a lo largo de la serie: pelo y bigote → rapado (quimio) → calvo con perilla →
+// nariz vendada (4x09-4x10) → pelo y barba canosos en New Hampshire (5x15-5x16)
+function walterLook(){
+  const L=LOOK.W, i=(typeof G!=='undefined'&&G&&G.mi)||0, at=c=>typeof missionIdx==='function'&&typeof MISSIONS!=='undefined'?missionIdx(c):({'1x06':5,'3x01':20,'4x09':41,'4x10':42,'5x15':60})[c];
+  if(i<at('1x06')) return Object.assign({},L,{hair:'walt1',hc:'#7a6650',hc2:'#a49a8c',wrinkles:3,beard:'mustache',bc:'#7a6250',bc2:null,glasses:'rect',cloth:'#7a6e52',check:'#9a8a62',browA:0.06});
+  if(i<at('3x01')) return Object.assign({},L,{hair:'shaved',hc:'#8f857a',beard:'mustache',bc:'#7a6250',bc2:null,outfit:'plaidopen',cloth:'#3e6a3e',shirt:'#e8e8e0',check:'#2e5a2e'});
+  if(i>=at('5x15')) return Object.assign({},L,{hair:'receding',hc:'#9a9288',beard:'goatee',bc:'#8a8278',bc2:'#b8b0a6',glasses:'thick',cloth:'#3a3530',wrinkles:3});
+  return Object.assign({},L,{hair:'bald'},(i>=at('4x09')&&i<=at('4x10'))?{bandage:true}:{});
+}
+let PORTRAIT_BARE=false;
+let PORTRAIT_HAT=null; // null: según el sitio del jugador · true/false: forzado (cinemáticas)
+const HAT_BG=new Set(['desert','junkyard','warehouse','street','carpark','tohajiilee','train','diner','hacienda','office','snow']);
+function walterHat(){ if(!heisLook()) return false; if(PORTRAIT_HAT!==null) return PORTRAIT_HAT; return !(typeof G!=='undefined'&&G.inside); } // true: sin marco circular ni fondo (primeros planos de las cinemáticas)
 function drawPortrait(id,cx,cy,r,talking,t){
   ctx.save(); ctx.translate(cx,cy);
-  ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.closePath();
+  ctx.beginPath(); if(PORTRAIT_BARE) ctx.rect(-r*4,-r*4,r*8,r*8); else ctx.arc(0,0,r,0,7); ctx.closePath();
   // fondo ahumado azul-gris (como un póster)
   const bg=ctx.createRadialGradient(-r*0.3,-r*0.4,r*0.1,0,0,r*1.1);
   bg.addColorStop(0,'#5a6a7a'); bg.addColorStop(0.55,'#2a3440'); bg.addColorStop(1,'#0d1117');
-  ctx.fillStyle=bg; ctx.fill();
+  if(!PORTRAIT_BARE) ctx.fillStyle=bg, ctx.fill();
   ctx.save(); ctx.clip();
-  for(let i=0;i<5;i++){ ctx.fillStyle='rgba(180,200,220,.05)'; ctx.beginPath(); ctx.arc(Math.sin(t*0.3+i*2)*r*0.6,Math.cos(t*0.2+i)*r*0.5,r*0.45,0,7); ctx.fill(); }
+  if(!PORTRAIT_BARE) for(let i=0;i<5;i++){ ctx.fillStyle='rgba(180,200,220,.05)'; ctx.beginPath(); ctx.arc(Math.sin(t*0.3+i*2)*r*0.6,Math.cos(t*0.2+i)*r*0.5,r*0.45,0,7); ctx.fill(); }
   const s=r/50; ctx.scale(s,s);
   if(id==='P'){
     ctx.fillStyle='#222'; roundRect(-16,-28,32,56,6); ctx.fill(); ctx.fillStyle='#6cf'; ctx.fillRect(-12,-22,24,36);
@@ -90,7 +103,8 @@ function drawPortrait(id,cx,cy,r,talking,t){
     ctx.restore(); ringPortrait(r); ctx.restore(); return;
   }
   let L=LOOK[id]; if(!L){ ctx.restore(); ctx.restore(); return; }
-  const heis = id==='W' && heisLook();
+  if(id==='W') L=walterLook();
+  const heis = id==='W' && walterHat();
   if(heis) L=Object.assign({},L,{outfit:'jacket',cloth:'#2b2b2b',shirt:'#55504a',hat:true,browA:0.2});
   const W=L.hw, H=L.hh, HY=-4; // centro de la cabeza
   const E=(x,y,rx,ry,c,rot)=>{ ctx.fillStyle=c; ctx.beginPath(); ctx.ellipse(x,y,rx,ry,rot||0,0,7); ctx.fill(); };
@@ -197,6 +211,20 @@ function drawPortrait(id,cx,cy,r,talking,t){
     ctx.fillStyle='rgba(255,255,255,.07)'; for(let i=0;i<30;i++){ ctx.fillRect(-W+((i*37)%(2*W)),-H+((i*13)%(H*0.4)),1,2); }
     ctx.restore();
   }
+  if(L.hair==='walt1'){ // Walter temporada 1: entradas muy marcadas, frente alta, pelo fino con raya y laterales canosos
+    ctx.save(); headPath(W+1,H+1,L.jaw); ctx.clip();
+    // laterales y nuca, más densos
+    ctx.fillStyle=L.hc; ctx.beginPath(); ctx.moveTo(-W-2,2); ctx.quadraticCurveTo(-W-1,-H*0.55,-W*0.62,-H*0.72); ctx.lineTo(-W*0.5,-H*0.58); ctx.quadraticCurveTo(-W*0.8,-H*0.3,-W*0.78,0); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(W+2,2); ctx.quadraticCurveTo(W+1,-H*0.55,W*0.62,-H*0.72); ctx.lineTo(W*0.5,-H*0.58); ctx.quadraticCurveTo(W*0.8,-H*0.3,W*0.78,0); ctx.closePath(); ctx.fill();
+    // coronilla: pelo fino que deja ver la piel, con entradas en "M"
+    ctx.globalAlpha=0.72; ctx.beginPath(); ctx.moveTo(-W*0.64,-H*0.7);
+    ctx.quadraticCurveTo(-W*0.45,-H*0.84,-W*0.2,-H*0.8); ctx.quadraticCurveTo(-W*0.05,-H*0.9,W*0.12,-H*0.8);
+    ctx.quadraticCurveTo(W*0.42,-H*0.84,W*0.64,-H*0.7); ctx.lineTo(W+2,-H-4); ctx.lineTo(-W-2,-H-4); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
+    // raya al lado y mechones peinados
+    ctx.strokeStyle=shade(L.hc,-30); ctx.lineWidth=0.7; ctx.beginPath(); ctx.moveTo(-W*0.35,-H*0.82); ctx.quadraticCurveTo(-W*0.3,-H*0.95,-W*0.2,-H-2); ctx.stroke();
+    ctx.strokeStyle=shade(L.hc,25); for(let i=0;i<7;i++){ ctx.beginPath(); ctx.moveTo(-W*0.25+i*3,-H*0.86); ctx.quadraticCurveTo(-W*0.1+i*3.5,-H*0.98,W*0.3+i*1.5,-H*0.9); ctx.stroke(); }
+    ctx.restore();
+  }
   if(L.hair==='swept'){
     ctx.beginPath(); ctx.moveTo(-W-2,0); ctx.quadraticCurveTo(-W-4,-H*0.9,-W*0.2,-H-3); ctx.quadraticCurveTo(W*0.9,-H-4,W+2,-H*0.3); ctx.lineTo(W+1,2);
     ctx.quadraticCurveTo(W*0.7,-H*0.5,W*0.1,-H*0.62); ctx.quadraticCurveTo(-W*0.6,-H*0.55,-W*0.8,-H*0.25); ctx.lineTo(-W+1,2); ctx.closePath(); ctx.fill();
@@ -286,7 +314,8 @@ function drawPortrait(id,cx,cy,r,talking,t){
     ctx.fillStyle='rgba(255,255,255,.08)'; ctx.fillRect(-W+5,-H-9,8,12);
     ctx.fillStyle='rgba(0,0,0,.35)'; ctx.fillRect(-W,-H*0.6,2*W,4); ctx.restore(); }
   ctx.restore();
-  ringPortrait(r);
+  if(L.bandage){ ctx.save(); ctx.rotate(-0.25); ctx.fillStyle='#f2ece0'; roundRect(-9,3,18,6,2); ctx.fill(); ctx.strokeStyle='rgba(120,100,80,.4)'; ctx.lineWidth=0.6; ctx.strokeRect(-9,3,18,6); ctx.restore(); ctx.fillStyle='rgba(120,40,60,.25)'; ctx.beginPath(); ctx.ellipse(-9,1,5,3,0,0,7); ctx.fill(); }
+  if(!PORTRAIT_BARE) ringPortrait(r);
   ctx.restore();
 }
 function ringPortrait(r){
