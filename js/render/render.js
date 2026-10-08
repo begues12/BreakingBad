@@ -19,10 +19,26 @@ function initRender(){
   // por carretera: trazado a ras de suelo y tramos elevados (puentes, rampas)
   for(const r of ROADS){
     const P=new Path2D(); let pen=false, deck=null; r.decks=[];
-    for(let sv=0; sv<=r.len+0.1; sv+=10){ const s=Math.min(sv,r.len), p=pointAt(r,s);
-      if(p.e>GROUND_E){ pen=false; if(!deck){ deck=[Math.max(0,s-10),s]; r.decks.push(deck); } deck[1]=s; continue; }
-      if(deck){ deck[1]=s; deck=null; }
-      if(pen) P.lineTo(p.x,p.y); else { P.moveTo(p.x,p.y); pen=true; } }
+    const addDeck=(a,b)=>{
+      if(b-a<0.01) return;
+      if(deck&&Math.abs(deck[1]-a)<0.01) deck[1]=b;
+      else { deck=[a,b]; r.decks.push(deck); }
+    };
+    // Divide the road at the exact point where it clears the ground. Sampling by
+    // fixed distances left a visible gap between the road and the bridge deck.
+    for(let i=0;i<r.pts.length-1;i++){
+      const s0=r.cum[i], s1=r.cum[i+1], e0=r.elev[i], e1=r.elev[i+1];
+      const p0=r.pts[i], p1=r.pts[i+1], above0=e0>GROUND_E, above1=e1>GROUND_E;
+      if(above0!==above1){
+        const t=(GROUND_E-e0)/(e1-e0), sc=s0+(s1-s0)*t;
+        const x=p0[0]+(p1[0]-p0[0])*t, y=p0[1]+(p1[1]-p0[1])*t;
+        if(above0) addDeck(s0,sc);
+        else { if(pen){ P.lineTo(x,y); pen=false; } else P.moveTo(x,y); }
+        if(above1){ addDeck(sc,s1); pen=false; }
+        else { P.lineTo(p1[0],p1[1]); pen=true; }
+      } else if(above0){ addDeck(s0,s1); pen=false; }
+      else { if(!pen) P.moveTo(p0[0],p0[1]); P.lineTo(p1[0],p1[1]); pen=true; }
+    }
     r.gpath=P;
   }
   RENDER_READY=true;
@@ -77,16 +93,24 @@ function drawWorld(t){
 }
 // trozos a ras de suelo de una carretera dentro de una caja (con el desfase de discontinuas correcto)
 function groundPieces(r,x0,y0,x1,y1){
-  const m=r.w/2+SIDEWALK+80, out=[]; let cur=null;
+  const m=r.w/2+SIDEWALK+80, out=[]; let path=null, pen=false, startS=0;
   const inBox=p=>p[0]>x0-m&&p[0]<x1+m&&p[1]>y0-m&&p[1]<y1+m;
-  for(let i=0;i<r.pts.length;i++){
-    const p=r.pts[i], ok=r.elev[i]<=GROUND_E && (inBox(p)||(i>0&&inBox(r.pts[i-1]))||(i<r.pts.length-1&&inBox(r.pts[i+1])));
-    if(!ok){ cur=null; continue; }
-    if(!cur){ cur={path:new Path2D(),dashOff:r.cum[i],n:0}; out.push(cur); cur.path.moveTo(p[0],p[1]); }
-    else cur.path.lineTo(p[0],p[1]);
-    cur.n++;
+  const begin=(p,s)=>{ path=new Path2D(); path.moveTo(p[0],p[1]); pen=true; startS=s; };
+  const finish=()=>{ if(path&&pen) out.push({...r,path,dashOff:startS}); path=null; pen=false; };
+  for(let i=0;i<r.pts.length-1;i++){
+    const a=r.pts[i], b=r.pts[i+1], s0=r.cum[i], s1=r.cum[i+1], e0=r.elev[i], e1=r.elev[i+1];
+    if(!inBox(a)&&!inBox(b)){ finish(); continue; }
+    const low0=e0<=GROUND_E, low1=e1<=GROUND_E;
+    if(low0!==low1){
+      const t=(GROUND_E-e0)/(e1-e0), c=[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t], sc=s0+(s1-s0)*t;
+      if(low0){ if(!pen) begin(a,s0); path.lineTo(c[0],c[1]); finish(); }
+      else { finish(); begin(c,sc); path.lineTo(b[0],b[1]); }
+    } else if(low0){
+      if(!pen) begin(a,s0); path.lineTo(b[0],b[1]);
+    } else finish();
   }
-  return out.filter(c=>c.n>1).map(c=>({...r,path:c.path,dashOff:c.dashOff}));
+  finish();
+  return out;
 }
 // todo lo estático de una zona del mundo (se pinta dentro de una baldosa)
 function drawStatic(x0,y0,x1,y1,lights){
@@ -174,7 +198,8 @@ function drawLot(s){
 // recorre un tramo elevado devolviendo trozos visibles de muestras {p,lx,ly}
 function deckPieces(r,d,x0,y0,x1,y1){
   const pieces=[]; let cur=null; const m=500;
-  for(let sv=d[0]; sv<=d[1]+0.1; sv+=12){ const s=Math.min(sv,d[1]), p=pointAt(r,s);
+  const samples=[]; for(let s=d[0];s<d[1];s+=12) samples.push(s); samples.push(d[1]);
+  for(const s of samples){ const p=pointAt(r,s);
     if(p.x<x0-m||p.x>x1+m||p.y<y0-m||p.y>y1+m){ cur=null; continue; }
     if(!cur){ cur=[]; pieces.push(cur); }
     const [lx,ly]=liftOf(p.x,p.y,Math.max(0,p.e)); cur.push({p,lx,ly}); }
@@ -212,6 +237,14 @@ function drawOverpasses(){
       for(let i=W.length-1;i>=0;i--) ctx.lineTo(W[i][2],W[i][3]);
       ctx.closePath(); ctx.fill();
       ctx.strokeStyle='rgba(0,0,0,.18)'; ctx.lineWidth=1; ctx.beginPath(); W.forEach((q,i)=>{ if(i%5===0){ ctx.moveTo(q[0],q[1]); ctx.lineTo(q[2],q[3]); } }); ctx.stroke();
+    }
+    // Close the exposed bridge ends so the deck reads as one continuous structure.
+    for(const q of [pc[0],pc[pc.length-1]]){
+      const nx=Math.cos(q.p.a+Math.PI/2)*r.w/2, ny=Math.sin(q.p.a+Math.PI/2)*r.w/2;
+      ctx.fillStyle='#857f74'; ctx.beginPath();
+      ctx.moveTo(q.p.x+nx,q.p.y+ny); ctx.lineTo(q.p.x-nx,q.p.y-ny);
+      ctx.lineTo(q.p.x-nx+q.lx,q.p.y-ny+q.ly); ctx.lineTo(q.p.x+nx+q.lx,q.p.y+ny+q.ly);
+      ctx.closePath(); ctx.fill();
     }
     // tablero: la misma carretera siguiendo el trazado elevado
     drawRoadSet([{...r,path:lifted}],true,x0,y0,x1,y1,true);

@@ -270,12 +270,27 @@ function rampFrom(hwyName, nearX, nearY, side) {
   let bi = 0, bd = 1e9; h.pts.forEach((p, i) => { const d = dist(p[0], p[1], nearX, nearY); if (d < bd) { bd = d; bi = i; } });
   const a = h.pts[Math.max(0, bi - 1)], b = h.pts[Math.min(h.pts.length - 1, bi + 1)], ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
   const nx = Math.cos(ang + Math.PI / 2) * side, ny = Math.sin(ang + Math.PI / 2) * side, ux = Math.cos(ang), uy = Math.sin(ang);
-  const merge = h.pts[Math.min(h.pts.length - 1, bi + 9)];
-  const start = [merge[0] - ux * 900 + nx * 230, merge[1] - uy * 900 + ny * 230];
+  const startAnchor = h.pts[Math.min(h.pts.length - 1, bi + 9)];
+  // Never attach an access ramp to the ground-level tail after a bridge deck.
+  let merge = null;
+  for (let i = bi; i <= Math.min(h.pts.length - 1, bi + 9); i++) if (h.pts[i][2] >= 8.5) merge = h.pts[i];
+  if (!merge) merge = h.pts[bi];
+  let start = [startAnchor[0] - ux * 900 + nx * 230, startAnchor[1] - uy * 900 + ny * 230];
+  // Snap the low end to the nearest surface street so the navigation graph has
+  // a real junction instead of a ramp that only looks connected from a distance.
+  let snap = null, snapD = 300;
+  for (const r of roads) if (r.kind === 'main' || r.kind === 'street') for (let i = 0; i < r.pts.length - 1; i++) {
+    const p = r.pts[i], q = r.pts[i + 1], dx = q[0] - p[0], dy = q[1] - p[1], l = dx * dx + dy * dy;
+    const t = l ? clamp(((start[0] - p[0]) * dx + (start[1] - p[1]) * dy) / l, 0, 1) : 0;
+    const x = p[0] + dx * t, y = p[1] + dy * t, d = dist(start[0], start[1], x, y);
+    if (d < snapD) { snapD = d; snap = [x, y]; }
+  }
+  if (snap) start = snap;
+  start = start.map(Math.round);
   const pts = [];
   for (let k = 0; k <= 14; k++) { const t = k / 14, e = t * t * (3 - 2 * t);
-    pts.push([Math.round(start[0] + (merge[0] - start[0]) * t + nx * 0 ), Math.round(start[1] + (merge[1] - start[1]) * t), 0]);
-    pts[k][2] = +(groundZ(pts[k][0], pts[k][1]) + (9 - groundZ(pts[k][0], pts[k][1])) * e).toFixed(2); }
+    pts.push([Math.round(start[0] + (merge[0] - start[0]) * t), Math.round(start[1] + (merge[1] - start[1]) * t), 0]);
+    const g = groundZ(pts[k][0], pts[k][1]); pts[k][2] = +(g + (merge[2] - g) * e).toFixed(2); }
   // el inicio se engancha a la avenida más cercana (a nivel)
   roads.push({ id: rid++, name: 'Acceso ' + hwyName, kind: 'ramp', pts });
 }
